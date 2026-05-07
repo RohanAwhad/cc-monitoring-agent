@@ -28,10 +28,5 @@
     "hygiene": 0.5,
     "growth": 0.5,
     "project": 0.0
-  },
-  "research_target": null,
-  "mutable_surfaces": [],
-  "fixed_surfaces": [],
-  "research_constraints": [],
-  "cost_budget": null
+  }
 }
