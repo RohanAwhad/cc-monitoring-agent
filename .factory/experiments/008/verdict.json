@@ -1,0 +1,15 @@
+{
+  "id": 8,
+  "timestamp": "2026-05-07 13:20:16.639710",
+  "hypothesis": "Add state change notifications to watch mode",
+  "change_summary": "Added --notify flag with osascript notifications \u2014 reverted due to systemic precheck failure",
+  "issue_number": 14,
+  "pr_number": null,
+  "score_before": null,
+  "score_after": null,
+  "delta": null,
+  "verdict": "revert",
+  "cost_usd": null,
+  "notes": "ceo:revert reason=precheck_failed failures=score_direction,scope score_delta=-0.032 hypothesis_type=code execution_artifacts=na e2e=pass backlog_cleared=na systemic_eval_regression=true",
+  "research_citations": []
+}

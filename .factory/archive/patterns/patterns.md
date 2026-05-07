@@ -30,3 +30,11 @@ When adding debug-level logging to existing functions (instrumentation, not beha
 ## Request-level tracing via context-bound IDs enables cross-function log correlation
 Discovered in cc-monitoring-agent experiment #011.
 Generating a unique scan/request ID at the CLI entry point and binding it to the logger context (e.g., `logger.bind(scan_id=...)`) makes all downstream log entries automatically include the ID. This is especially valuable in continuous-mode tools (watch loops) where multiple scans interleave. The pattern: generate ID at entry, bind once, let the logging framework propagate — no need to pass the ID through every function signature.
+
+## Factory eval systemic regression — src-layout projects scored with system Python
+Discovered in cc-monitoring-agent cycle 2 (experiments #012, #013, #014 — all reverted).
+The factory eval runs mypy/lint overlay dimensions using system Python, which cannot resolve imports from src-layout projects (`src/package_name/`). Every new Python file adds unresolvable imports, causing `type_check` to drop to 0.0 and triggering false score regressions. The regression magnitude correlates with code addition size: -0.058 (largest), -0.049, -0.032 (smallest). This makes all EXPLOIT/EXPLORE hypotheses that add new Python code unviable for src-layout projects until the factory eval uses `uv run` or project venvs. Workaround: focus on FIX hypotheses or config-only changes that don't add new import surface.
+
+## 0% keep rate signals infrastructure blocker, not code quality issue
+Discovered in cc-monitoring-agent cycle 2.
+When all experiments in a cycle are reverted with the same failure mode (score_direction precheck) but all pass e2e tests and project eval, the root cause is infrastructure, not code. The correct response is to stop the cycle and fix the eval infrastructure rather than attempting more hypotheses — each attempt wastes builder time for a guaranteed revert. Diagnostic: if project eval = 1.0 but factory precheck fails on score_direction, the overlay dimensions are misconfigured.

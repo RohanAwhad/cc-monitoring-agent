@@ -1,5 +1,5 @@
 {
-  "total": 0.516502,
+  "total": 0.50715,
   "results": [
     {
       "name": "tests",
@@ -17,10 +17,10 @@
     },
     {
       "name": "type_check",
-      "score": 0.4,
+      "score": 0.2,
       "weight": 0.05,
       "passed": false,
-      "details": "cc-monitoring-agent: 12 errors"
+      "details": "cc-monitoring-agent: 16 errors"
     },
     {
       "name": "coverage",
@@ -45,10 +45,10 @@
     },
     {
       "name": "capability_surface",
-      "score": 0.3143,
+      "score": 0.3375,
       "weight": 0.14,
       "passed": false,
-      "details": "surface=44 (modules=14, public_fns=30, entry_points=0), target=140"
+      "details": "surface=54 (modules=16, public_fns=36, entry_points=2), target=160"
     },
     {
       "name": "experiment_diversity",
@@ -59,10 +59,10 @@
     },
     {
       "name": "observability",
-      "score": 0.5,
+      "score": 0.474,
       "weight": 0.1,
-      "passed": true,
-      "details": "observability_score=0.50, function_coverage=0.33, structured_logging=False"
+      "passed": false,
+      "details": "observability_score=0.47, function_coverage=0.32, structured_logging=False"
     },
     {
       "name": "research_grounding",

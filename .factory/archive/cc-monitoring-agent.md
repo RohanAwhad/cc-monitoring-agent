@@ -14,23 +14,27 @@ A Python CLI tool that scans all tmux panes, detects running Claude Code and Ope
 
 ## Status
 
-- **State**: improve (build complete, cycle 1 complete)
-- **Current Score**: 0.517 (factory composite) / 1.0 (project eval)
-- **Experiments Run**: 12 total (7 build + 5 improve), 1 reverted
-- **Kept**: 11, **Reverted**: 1
+- **State**: improve (build complete, cycle 1 complete, cycle 2 complete — blocked)
+- **Current Score**: 0.539 (factory composite) / 1.0 (project eval)
+- **Experiments Run**: 15 total (7 build + 5 improve cycle 1 + 3 improve cycle 2), 4 reverted
+- **Kept**: 11, **Reverted**: 4
 - **Total Tests**: 81, **Coverage**: 98%
 - **Build Phases**: 7/7 complete
 - **Improve Cycle 1**: Complete — 4 hypotheses delivered (H1-H4), 5 experiments (4 kept, 1 reverted)
-- **Note**: Factory composite score (0.517) diverges from project eval (1.0) due to eval detection issue — factory eval uses stale `last_eval.json` that predates the improve cycle fixes
+- **Improve Cycle 2**: Complete — 3 hypotheses attempted, ALL 3 REVERTED due to systemic eval issue
+- **Blocker**: Factory eval runs mypy/lint with system Python on experiment branches — cannot resolve src-layout imports, causing type_check to drop to 0.0 and triggering score regression on every new code addition
 
 ## Score History
 
 - **Build phase**: Internal eval 1.0, factory composite 0.517 (discrepancy due to stale eval cache)
-- **H1 (mypy fix)**: Factory 0.517 → 0.517 (delta n/a, eval detection issue); project eval 1.0 — type_check dimension fixed (12 errors → 0)
-- **H2 (pytest-cov)**: Factory 0.517 → 0.517 (delta +0.0, eval detection issue); 98% coverage achieved — pytest-cov configured with source_pkgs for src-layout
-- **H3 (watch mode)**: Factory 0.517 → 0.517 (delta +0.0, eval detection issue); ccm watch subcommand added — Rich Live, subcommand refactor, 8 new tests, 81 total
-- **H4 (observability)**: Factory 0.517 → 0.517 (delta +0.0, eval detection issue); scan_id tracing, structured JSON logs, debug logging in cli/display/models — function coverage 33% → 80%+
-- **Remaining growth targets**: capability_surface (per factory eval dimensions)
+- **Cycle 1 H1 (mypy fix)**: Factory 0.517 → 0.517 — type_check dimension fixed (12 errors → 0)
+- **Cycle 1 H2 (pytest-cov)**: Factory 0.517 → 0.517 — 98% coverage achieved
+- **Cycle 1 H3 (watch mode)**: Factory 0.517 → 0.517 — ccm watch subcommand added, 81 total tests
+- **Cycle 1 H4 (observability)**: Factory 0.517 → 0.517 — scan_id tracing, structured JSON logs
+- **Post cycle 1 merge**: Factory composite 0.539 (main branch, after merging cycle 1 PRs)
+- **Cycle 2 H1 (filtering/sorting)**: Factory 0.539 → REVERT (delta -0.058, systemic eval failure)
+- **Cycle 2 H2 (one-line summary)**: Factory 0.539 → REVERT (delta -0.049, systemic eval failure)
+- **Cycle 2 H3 (notifications)**: Factory 0.539 → REVERT (delta -0.032, systemic eval failure)
 
 ## Improve Cycle 1 Summary (2026-05-07)
 
@@ -44,6 +48,18 @@ A Python CLI tool that scans all tmux panes, detects running Claude Code and Ope
 
 **Keep rate**: 80% (4/5)
 **Lessons learned**: Expand modifiable scope *before* running experiments that touch config files.
+
+## Improve Cycle 2 Summary (2026-05-07)
+
+| Hypothesis | Category | Target Dimension | Verdict | Score Delta | Key Result |
+|---|---|---|---|---|---|
+| H1: Filtering/sorting flags | EXPLOIT | capability_surface | **REVERT** | -0.058 | Systemic eval failure — code correct, tests pass |
+| H2: One-line summary mode | EXPLORE | capability_surface | **REVERT** | -0.049 | Systemic eval failure — code correct, tests pass |
+| H3: State change notifications | EXPLORE | capability_surface | **REVERT** | -0.032 | Systemic eval failure — code correct, tests pass |
+
+**Keep rate**: 0% (0/3)
+**Root cause**: Factory eval runs mypy/lint overlay dimensions using system Python, which cannot resolve project imports in src-layout (`src/cc_monitor/`). Every new Python file amplifies unresolvable imports, causing score regression. All 3 implementations were functionally correct (e2e pass, project eval 1.0).
+**Conclusion**: Further improve cycles on this project are blocked until the factory eval infrastructure is fixed to use `uv run` or project venvs for overlay dimensions.
 
 ## Build Plan (CEO-Approved 2026-05-07)
 
@@ -65,9 +81,9 @@ CEO Verdict: **PROCEED**. Research thorough and actionable.
 
 1. **FIX**: Add pytest-cov and coverage configuration — make test quality measurable ✅ (H2)
 2. **EXPLOIT**: Watch mode (`ccm watch`) — highest-impact feature, Rich Live, capability_surface growth ✅ (H3)
-3. **EXPLOIT**: Filtering and sorting flags (`--state`, `--agent`, `--sort`)
-4. **EXPLORE**: One-line summary mode for tmux/shell prompt integration
-5. **EXPLORE**: State change notifications via macOS osascript
+3. **EXPLOIT**: Filtering and sorting flags (`--state`, `--agent`, `--sort`) ❌ (Cycle 2, reverted — eval systemic)
+4. **EXPLORE**: One-line summary mode for tmux/shell prompt integration ❌ (Cycle 2, reverted — eval systemic)
+5. **EXPLORE**: State change notifications via macOS osascript ❌ (Cycle 2, reverted — eval systemic)
 
 ### CEO Priorities for Strategist
 
@@ -116,6 +132,9 @@ CEO Verdict: **PROCEED**. Research thorough and actionable.
 - [H2 Complete (2026-05-07)](strategies/cc-monitoring-agent-2026-05-07-h2-complete.md) — pytest-cov configured, 98% coverage, second improve experiment
 - [H4 Complete (2026-05-07)](strategies/cc-monitoring-agent-2026-05-07-h4-complete.md) — Observability expanded, scan_id tracing, all 4 improve hypotheses complete
 - [Cycle 1 Complete (2026-05-07)](strategies/cc-monitoring-agent-2026-05-07-cycle1-complete.md) — Full cycle summary, 12 experiments total, 80% keep rate
+- [Cycle 2 Research (2026-05-07)](strategies/cc-monitoring-agent-2026-05-07-cycle2-research.md) — Research complete, all prior sources reused, 3 backlog items identified
+- [Cycle 2 Strategy (2026-05-07)](strategies/cc-monitoring-agent-2026-05-07-cycle2-strategy.md) — CEO PROCEED, 3 hypotheses targeting capability_surface
+- [Cycle 2 Complete (2026-05-07)](strategies/cc-monitoring-agent-2026-05-07-cycle2-complete.md) — All 3 reverted, systemic eval blocker identified
 
 ## Experiment History
 
@@ -134,3 +153,8 @@ CEO Verdict: **PROCEED**. Research thorough and actionable.
 - [Experiment #009](experiments/cc-monitoring-agent-009.md) — Configure pytest-cov retry (**KEEP**, H2, 98% coverage)
 - [Experiment #010](experiments/cc-monitoring-agent-010.md) — Watch mode with Rich Live (**KEEP**, H3, 81 tests)
 - [Experiment #011](experiments/cc-monitoring-agent-011.md) — Observability expansion (**KEEP**, H4, scan_id tracing)
+
+### Improve Cycle 2 (Experiments 012-014 — all reverted)
+- [Experiment #012](experiments/cc-monitoring-agent-012.md) — Filtering/sorting flags (**REVERT**, -0.058, systemic eval)
+- [Experiment #013](experiments/cc-monitoring-agent-013.md) — One-line summary mode (**REVERT**, -0.049, systemic eval)
+- [Experiment #014](experiments/cc-monitoring-agent-014.md) — State change notifications (**REVERT**, -0.032, systemic eval)
