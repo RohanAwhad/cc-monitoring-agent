@@ -19,6 +19,8 @@ agents-py:2.1 opencode 95294
 factory:1.1 opencode 40301
 dev:0.0 zsh 12345
 build:1.0 vim 99999
+gemini-work:3.0 gemini 60001
+codex-proj:4.0 codex 70001
 """
 
 PS_OUTPUT = """\
@@ -28,13 +30,15 @@ PS_OUTPUT = """\
 95295 95294 opencode
 40302 40301 opencode
 12346 12345 zsh
+60002 60001 gemini
+70002 70001 codex
 """
 
 
 class TestParsePaneLines:
     def test_parses_valid_lines(self) -> None:
         panes = _parse_pane_lines(TMUX_OUTPUT)
-        assert len(panes) == 6
+        assert len(panes) == 8
         assert panes[0].session_name == "writer-cc"
         assert panes[0].window_index == 1
         assert panes[0].pane_index == 0
@@ -47,6 +51,20 @@ class TestParsePaneLines:
         assert oc.session_name == "agents-py"
         assert oc.current_command == "opencode"
         assert oc.pane_pid == 95294
+
+    def test_gemini_pane(self) -> None:
+        panes = _parse_pane_lines(TMUX_OUTPUT)
+        gp = panes[6]
+        assert gp.session_name == "gemini-work"
+        assert gp.current_command == "gemini"
+        assert gp.pane_pid == 60001
+
+    def test_codex_pane(self) -> None:
+        panes = _parse_pane_lines(TMUX_OUTPUT)
+        cp = panes[7]
+        assert cp.session_name == "codex-proj"
+        assert cp.current_command == "codex"
+        assert cp.pane_pid == 70001
 
     def test_empty_output(self) -> None:
         assert _parse_pane_lines("") == []
@@ -75,6 +93,14 @@ class TestClassifyPane:
             pane = RawPane("s", 0, 0, cmd, 100)
             assert classify_pane(pane) == "other"
 
+    def test_gemini(self) -> None:
+        pane = RawPane("s", 0, 0, "gemini", 100)
+        assert classify_pane(pane) == "gemini"
+
+    def test_codex(self) -> None:
+        pane = RawPane("s", 0, 0, "codex", 100)
+        assert classify_pane(pane) == "codex"
+
     def test_partial_version_not_matched(self) -> None:
         pane = RawPane("s", 0, 0, "2.1", 100)
         assert classify_pane(pane) == "other"
@@ -96,7 +122,7 @@ class TestListAllPanes:
     def test_success(self, mock_run: MagicMock) -> None:
         mock_run.return_value = MagicMock(returncode=0, stdout=TMUX_OUTPUT)
         panes = list_all_panes()
-        assert len(panes) == 6
+        assert len(panes) == 8
         mock_run.assert_called_once()
 
     @patch("cc_monitor.discovery.subprocess.run")
@@ -126,7 +152,7 @@ class TestVerifyClaudeCandidate:
 
 class TestDiscoverSessions:
     @patch("cc_monitor.discovery.subprocess.run")
-    def test_discovers_claude_and_opencode(self, mock_run: MagicMock) -> None:
+    def test_discovers_all_agent_types(self, mock_run: MagicMock) -> None:
         def side_effect(cmd: list[str], **kwargs: object) -> MagicMock:
             if cmd[0] == "tmux":
                 return MagicMock(returncode=0, stdout=TMUX_OUTPUT)
@@ -137,20 +163,30 @@ class TestDiscoverSessions:
         mock_run.side_effect = side_effect
         sessions = discover_sessions()
 
-        claude_sessions = [s for s in sessions if s.agent_type == "claude"]
-        opencode_sessions = [s for s in sessions if s.agent_type == "opencode"]
+        by_type = {
+            t: [s for s in sessions if s.agent_type == t]
+            for t in ("claude", "opencode", "gemini", "codex")
+        }
 
-        assert len(claude_sessions) == 2
-        assert len(opencode_sessions) == 2
+        assert len(by_type["claude"]) == 2
+        assert len(by_type["opencode"]) == 2
+        assert len(by_type["gemini"]) == 1
+        assert len(by_type["codex"]) == 1
 
-        assert claude_sessions[0].session_name == "writer-cc"
-        assert claude_sessions[0].tmux_target == "writer-cc:1.0"
-        assert claude_sessions[0].pane_pid == 57697
-        assert claude_sessions[0].state == "idle"
-        assert claude_sessions[0].summary == ""
+        assert by_type["claude"][0].session_name == "writer-cc"
+        assert by_type["claude"][0].tmux_target == "writer-cc:1.0"
+        assert by_type["claude"][0].pane_pid == 57697
+        assert by_type["claude"][0].state == "idle"
+        assert by_type["claude"][0].summary == ""
 
-        assert opencode_sessions[0].session_name == "agents-py"
-        assert opencode_sessions[0].tmux_target == "agents-py:2.1"
+        assert by_type["opencode"][0].session_name == "agents-py"
+        assert by_type["opencode"][0].tmux_target == "agents-py:2.1"
+
+        assert by_type["gemini"][0].session_name == "gemini-work"
+        assert by_type["gemini"][0].tmux_target == "gemini-work:3.0"
+
+        assert by_type["codex"][0].session_name == "codex-proj"
+        assert by_type["codex"][0].tmux_target == "codex-proj:4.0"
 
     @patch("cc_monitor.discovery.subprocess.run")
     def test_no_tmux(self, mock_run: MagicMock) -> None:

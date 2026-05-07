@@ -11,7 +11,7 @@ class AgentSession:
     session_name: str
     window_index: int
     pane_index: int
-    agent_type: Literal["claude", "opencode"]
+    agent_type: Literal["claude", "opencode", "gemini", "codex"]
     state: Literal["working", "idle", "needs_input"]
     summary: str
     pane_pid: int

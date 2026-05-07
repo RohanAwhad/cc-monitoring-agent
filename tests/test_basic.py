@@ -44,9 +44,7 @@ def test_cli_status_subcommand(
 
 
 @patch("cc_monitor.discovery.list_all_panes", return_value=[])
-def test_bare_ccm_defaults_to_status(
-    mock_panes: object, monkeypatch: object
-) -> None:
+def test_bare_ccm_defaults_to_status(mock_panes: object, monkeypatch: object) -> None:
     monkeypatch.setattr(sys, "argv", ["ccm"])  # type: ignore[attr-defined]
     main()
 

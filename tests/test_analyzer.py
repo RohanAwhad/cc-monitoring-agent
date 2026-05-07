@@ -6,10 +6,14 @@ from cc_monitor.analyzer import (
     analyze_sessions,
     capture_pane,
     detect_claude_state,
+    detect_codex_state,
+    detect_gemini_state,
     detect_opencode_state,
     detect_state,
     summarize_activity,
     summarize_claude_activity,
+    summarize_codex_activity,
+    summarize_gemini_activity,
     summarize_opencode_activity,
 )
 from cc_monitor.models import AgentSession
@@ -326,3 +330,88 @@ class TestAnalyzeSessions:
         assert result[0].state == "needs_input"
         assert result[1].state == "working"
         assert "Processing for" in result[1].summary
+
+
+GEMINI_IDLE_PANE = """\
+  I've completed the analysis of your codebase.
+  Here are the key findings.
+
+gemini>
+""".strip().splitlines()
+
+GEMINI_WORKING_PANE = """\
+  Let me analyze the authentication module.
+  Reading src/auth.py...
+  Checking dependencies...
+""".strip().splitlines()
+
+CODEX_IDLE_PANE = """\
+  All changes have been applied successfully.
+  Tests are passing.
+
+codex>
+""".strip().splitlines()
+
+CODEX_WORKING_PANE = """\
+  Refactoring the database layer.
+  Updating models...
+  Running migrations...
+""".strip().splitlines()
+
+
+class TestDetectGeminiState:
+    def test_idle_with_prompt(self) -> None:
+        assert detect_gemini_state(GEMINI_IDLE_PANE) == "needs_input"
+
+    def test_working_no_prompt(self) -> None:
+        assert detect_gemini_state(GEMINI_WORKING_PANE) == "working"
+
+    def test_empty_lines(self) -> None:
+        assert detect_gemini_state([]) == "idle"
+
+
+class TestDetectCodexState:
+    def test_idle_with_prompt(self) -> None:
+        assert detect_codex_state(CODEX_IDLE_PANE) == "needs_input"
+
+    def test_working_no_prompt(self) -> None:
+        assert detect_codex_state(CODEX_WORKING_PANE) == "working"
+
+    def test_empty_lines(self) -> None:
+        assert detect_codex_state([]) == "idle"
+
+
+class TestDetectStateGeminiCodex:
+    def test_dispatches_to_gemini(self) -> None:
+        assert detect_state("gemini", GEMINI_IDLE_PANE) == "needs_input"
+        assert detect_state("gemini", GEMINI_WORKING_PANE) == "working"
+
+    def test_dispatches_to_codex(self) -> None:
+        assert detect_state("codex", CODEX_IDLE_PANE) == "needs_input"
+        assert detect_state("codex", CODEX_WORKING_PANE) == "working"
+
+
+class TestSummarizeGeminiActivity:
+    def test_returns_last_content(self) -> None:
+        result = summarize_gemini_activity(GEMINI_WORKING_PANE)
+        assert result == "Checking dependencies..."
+
+    def test_empty_lines(self) -> None:
+        assert summarize_gemini_activity([]) == "Active session"
+
+    def test_prompt_filtered(self) -> None:
+        result = summarize_gemini_activity(GEMINI_IDLE_PANE)
+        assert "gemini>" not in result
+
+
+class TestSummarizeCodexActivity:
+    def test_returns_last_content(self) -> None:
+        result = summarize_codex_activity(CODEX_WORKING_PANE)
+        assert result == "Running migrations..."
+
+    def test_empty_lines(self) -> None:
+        assert summarize_codex_activity([]) == "Active session"
+
+    def test_prompt_filtered(self) -> None:
+        result = summarize_codex_activity(CODEX_IDLE_PANE)
+        assert "codex>" not in result

@@ -30,6 +30,8 @@ _RECAP_RE = re.compile(r"recap:", re.IGNORECASE)
 _TOOL_NAME_RE = re.compile(r"⏺\s+(\w+)\(")
 _COMPLETION_DURATION_RE = re.compile(r"✻\s+(?:Worked|Cooked) for\s+(.+)")
 _DECORATION_RE = re.compile(r"^[\s─━═▀▁╹┃⏵░█\[\]]*$")
+_GEMINI_PROMPT_RE = re.compile(r"gemini>\s*$")
+_CODEX_PROMPT_RE = re.compile(r"codex>\s*$")
 
 
 def detect_claude_state(lines: list[str]) -> AgentState:
@@ -71,13 +73,36 @@ def detect_opencode_state(lines: list[str]) -> AgentState:
     return "needs_input"
 
 
+def detect_gemini_state(lines: list[str]) -> AgentState:
+    if not lines:
+        return "idle"
+    bottom = "\n".join(lines[-5:])
+    if _GEMINI_PROMPT_RE.search(bottom):
+        return "needs_input"
+    return "working"
+
+
+def detect_codex_state(lines: list[str]) -> AgentState:
+    if not lines:
+        return "idle"
+    bottom = "\n".join(lines[-5:])
+    if _CODEX_PROMPT_RE.search(bottom):
+        return "needs_input"
+    return "working"
+
+
 def detect_state(
-    agent_type: Literal["claude", "opencode"], lines: list[str]
+    agent_type: Literal["claude", "opencode", "gemini", "codex"],
+    lines: list[str],
 ) -> AgentState:
     if agent_type == "claude":
         return detect_claude_state(lines)
     if agent_type == "opencode":
         return detect_opencode_state(lines)
+    if agent_type == "gemini":
+        return detect_gemini_state(lines)
+    if agent_type == "codex":
+        return detect_codex_state(lines)
     return "idle"
 
 
@@ -145,13 +170,54 @@ def summarize_opencode_activity(lines: list[str]) -> str:
     return "Active session"
 
 
+def summarize_gemini_activity(lines: list[str]) -> str:
+    if not lines:
+        return "Active session"
+    content_lines: list[str] = []
+    for line in lines:
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if _DECORATION_RE.match(stripped):
+            continue
+        if _GEMINI_PROMPT_RE.match(stripped):
+            continue
+        content_lines.append(stripped)
+    if content_lines:
+        return content_lines[-1]
+    return "Active session"
+
+
+def summarize_codex_activity(lines: list[str]) -> str:
+    if not lines:
+        return "Active session"
+    content_lines: list[str] = []
+    for line in lines:
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if _DECORATION_RE.match(stripped):
+            continue
+        if _CODEX_PROMPT_RE.match(stripped):
+            continue
+        content_lines.append(stripped)
+    if content_lines:
+        return content_lines[-1]
+    return "Active session"
+
+
 def summarize_activity(
-    agent_type: Literal["claude", "opencode"], lines: list[str]
+    agent_type: Literal["claude", "opencode", "gemini", "codex"],
+    lines: list[str],
 ) -> str:
     if agent_type == "claude":
         return summarize_claude_activity(lines)
     if agent_type == "opencode":
         return summarize_opencode_activity(lines)
+    if agent_type == "gemini":
+        return summarize_gemini_activity(lines)
+    if agent_type == "codex":
+        return summarize_codex_activity(lines)
     return ""
 
 
