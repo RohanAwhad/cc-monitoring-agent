@@ -27,3 +27,8 @@
 - [x] archivist after experiment 11 (revert) — 2026-05-07T18:10:07Z
 - [x] archivist after experiment 13 (revert) — 2026-05-07T18:20:05Z
 - [x] FINAL archivist (cycle 3) — 2026-05-07T18:25:00Z
+- [x] archivist after experiment 14 (REVERT) — 2026-05-07T19:04:44Z
+- [x] archivist after experiment 15 (REVERT) — 2026-05-07T19:09:25Z
+- [x] archivist after experiment 16 (REVERT) — 2026-05-07T19:13:36Z
+- [x] archivist after experiment 17 (REVERT) — 2026-05-07T19:18:14Z
+- [x] FINAL archivist (cycle 4) — 2026-05-07T19:22:59Z

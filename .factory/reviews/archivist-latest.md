@@ -1,22 +1,29 @@
 # Archivist Agent Output
 
-- **timestamp:** 2026-05-07T18:24:55Z
+- **timestamp:** 2026-05-07T19:22:56Z
 - **exit_code:** 0
 
 ---
 
-All archival tasks for cycle 3 complete. Here's what was written:
+Cycle 4 archive complete. Here's what was written:
 
-**Experiment notes** (4 new):
-- `experiments/cc-monitoring-agent-016.md` — Filtering/sorting REVERT (-0.018, type_check overlay)
-- `experiments/cc-monitoring-agent-017.md` — Filtering retry REVERT (-0.001, anti_pattern + noise)
-- `experiments/cc-monitoring-agent-018.md` — Summary mode ERROR (dirty .factory/ files in PR)
-- `experiments/cc-monitoring-agent-019.md` — Summary mode retry REVERT (threshold 0.800 unachievable, max ~0.645)
+**Experiment notes** (4 files):
+- `.factory/archive/experiments/cc-monitoring-agent-020.md` — Updated from PENDING to REVERT, capability_surface target scaling (-0.003)
+- `.factory/archive/experiments/cc-monitoring-agent-021.md` — Summary mode no-new-files, anti_pattern block despite +0.008 gain
+- `.factory/archive/experiments/cc-monitoring-agent-022.md` — Desktop notifications, lint regression (-0.016)
+- `.factory/archive/experiments/cc-monitoring-agent-023.md` — LLM analysis, factory_effectiveness death spiral (-0.0002)
 
-**Dashboard** updated with cycle 3 final state: 20 total experiments, 11 kept, 8 reverted, 1 error. Project functionally complete at eval 1.0 but factory composite stuck at 0.537.
+**Strategy snapshot**:
+- `.factory/archive/strategies/cc-monitoring-agent-2026-05-07-cycle4-complete.md` — Full cycle summary with systemic blockers table
 
-**Strategy snapshot**: `strategies/cc-monitoring-agent-2026-05-07-cycle3-complete.md` — includes cross-cycle retrospective and systemic blocker analysis.
+**Project dashboard**:
+- `.factory/archive/cc-monitoring-agent.md` — Updated with cycle 4 section, score history, experiment history (24 total: 11 kept, 12 reverted, 1 error)
 
-**Patterns** (3 new): anti-pattern precheck validation, builder dirty-tree contamination, threshold achievability detection, and diminishing-returns stop criteria.
+**Cross-project patterns** (5 new patterns appended):
+- capability_surface target formula punishes clean modules
+- No-new-files strategy avoids target scaling
+- Anti-pattern guard blocks valid strategy pivots
+- Factory effectiveness death spiral
+- Scope guard false positives from orchestrator artifacts
 
-**Performance report** regenerated successfully (11 experiments, 60 observations).
+**Performance report**: regenerated via `factory report-update`.
