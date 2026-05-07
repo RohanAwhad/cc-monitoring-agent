@@ -14,21 +14,7 @@ from cc_monitor.display import display_results
 from cc_monitor.logging import setup_logging
 
 
-def main() -> None:
-    setup_logging()
-
-    parser = argparse.ArgumentParser(
-        prog="ccm",
-        description="Monitor Claude Code and OpenCode agent sessions in tmux",
-    )
-    parser.add_argument(
-        "--json",
-        action="store_true",
-        dest="json_output",
-        help="output results as JSON",
-    )
-    args = parser.parse_args()
-
+def _run_status(args: argparse.Namespace) -> None:
     t0 = time.monotonic()
     sessions = discover_sessions()
     sessions = analyze_sessions(sessions)
@@ -44,3 +30,52 @@ def main() -> None:
         print()
     else:
         display_results(sessions)
+
+
+def _run_watch(args: argparse.Namespace) -> None:
+    from cc_monitor.watch import watch_loop
+
+    watch_loop(interval=args.interval)
+
+
+def main() -> None:
+    setup_logging()
+
+    parser = argparse.ArgumentParser(
+        prog="ccm",
+        description="Monitor Claude Code and OpenCode agent sessions in tmux",
+    )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        dest="json_output",
+        help="output results as JSON",
+    )
+    subparsers = parser.add_subparsers(dest="command")
+
+    status_parser = subparsers.add_parser("status", help="show current session status")
+    status_parser.add_argument(
+        "--json",
+        action="store_true",
+        dest="json_output",
+        help="output results as JSON",
+    )
+    status_parser.set_defaults(func=_run_status)
+
+    watch_parser = subparsers.add_parser(
+        "watch", help="continuously monitor sessions with live refresh"
+    )
+    watch_parser.add_argument(
+        "--interval",
+        type=float,
+        default=2.0,
+        help="refresh interval in seconds (default: 2)",
+    )
+    watch_parser.set_defaults(func=_run_watch)
+
+    args = parser.parse_args()
+
+    if args.command is None:
+        _run_status(args)
+    else:
+        args.func(args)

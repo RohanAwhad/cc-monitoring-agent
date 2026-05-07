@@ -5,7 +5,7 @@ from rich.table import Table
 
 from cc_monitor.models import AgentSession
 
-_STATE_STYLES: dict[str, str] = {
+STATE_STYLES: dict[str, str] = {
     "idle": "green",
     "working": "yellow",
     "needs_input": "bold red",
@@ -26,7 +26,7 @@ def display_results(sessions: list[AgentSession]) -> None:
     table.add_column("Summary")
 
     for s in sessions:
-        style = _STATE_STYLES.get(s.state, "")
+        style = STATE_STYLES.get(s.state, "")
         table.add_row(
             s.tmux_target,
             s.agent_type,

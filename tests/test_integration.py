@@ -141,7 +141,7 @@ class TestFullPipeline:
         mock_discovery_run.side_effect = effect
         mock_analyzer_run.side_effect = effect
 
-        monkeypatch.setattr(sys, "argv", ["ccm", "--json"])  # type: ignore[attr-defined]
+        monkeypatch.setattr(sys, "argv", ["ccm", "status", "--json"])  # type: ignore[attr-defined]
         main()
 
         captured = capsys.readouterr()  # type: ignore[attr-defined]
@@ -232,7 +232,7 @@ class TestCLIIntegration:
         capsys: object,
     ) -> None:
         mock_run.return_value = MagicMock(returncode=1, stdout="")
-        monkeypatch.setattr(sys, "argv", ["ccm", "--json"])  # type: ignore[attr-defined]
+        monkeypatch.setattr(sys, "argv", ["ccm", "status", "--json"])  # type: ignore[attr-defined]
         main()
         captured = capsys.readouterr()  # type: ignore[attr-defined]
         data = json.loads(captured.out)
@@ -254,7 +254,7 @@ class TestCLIIntegration:
         mock_discovery_run.side_effect = effect
         mock_analyzer_run.side_effect = effect
 
-        monkeypatch.setattr(sys, "argv", ["ccm", "--json"])  # type: ignore[attr-defined]
+        monkeypatch.setattr(sys, "argv", ["ccm", "status", "--json"])  # type: ignore[attr-defined]
         main()
 
         captured = capsys.readouterr()  # type: ignore[attr-defined]
