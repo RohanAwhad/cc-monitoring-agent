@@ -23,4 +23,5 @@ def setup_logging() -> None:
         level="DEBUG",
         format=file_fmt,
         rotation="10 MB",
+        serialize=True,
     )

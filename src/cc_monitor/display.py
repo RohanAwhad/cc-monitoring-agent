@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from loguru import logger
 from rich.console import Console
 from rich.table import Table
 
@@ -13,9 +14,11 @@ _STATE_STYLES: dict[str, str] = {
 
 
 def display_results(sessions: list[AgentSession]) -> None:
+    logger.debug("display_results called with {} sessions", len(sessions))
     console = Console()
 
     if not sessions:
+        logger.debug("no sessions to display")
         console.print("No agent sessions found in tmux.")
         return
 
@@ -27,6 +30,7 @@ def display_results(sessions: list[AgentSession]) -> None:
 
     for s in sessions:
         style = _STATE_STYLES.get(s.state, "")
+        logger.debug("rendering row: target={} state={}", s.tmux_target, s.state)
         table.add_row(
             s.tmux_target,
             s.agent_type,
