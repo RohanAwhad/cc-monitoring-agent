@@ -12,6 +12,7 @@ from loguru import logger
 from cc_monitor.analyzer import analyze_sessions
 from cc_monitor.discovery import discover_sessions
 from cc_monitor.display import display_results
+from cc_monitor.filtering import filter_sessions, sort_sessions
 from cc_monitor.logging import setup_logging
 
 
@@ -23,6 +24,11 @@ def _run_status(args: argparse.Namespace) -> None:
     sessions = discover_sessions()
     log.debug("discovered {} raw sessions", len(sessions))
     sessions = analyze_sessions(sessions)
+    state_filter = getattr(args, "state", None)
+    agent_filter = getattr(args, "agent", None)
+    sessions = filter_sessions(sessions, state_filter, agent_filter)
+    sort_key = getattr(args, "sort", "state")
+    sessions = sort_sessions(sessions, sort_key)
     elapsed_ms = (time.monotonic() - t0) * 1000
     log.info("found {} sessions ({:.0f}ms)", len(sessions), elapsed_ms)
 
@@ -40,6 +46,7 @@ def _run_status(args: argparse.Namespace) -> None:
 
 
 def _run_watch(args: argparse.Namespace) -> None:
+    logger.debug("_run_watch called with interval={}", args.interval)
     from cc_monitor.watch import watch_loop
 
     watch_loop(interval=args.interval)
@@ -47,6 +54,7 @@ def _run_watch(args: argparse.Namespace) -> None:
 
 def main() -> None:
     setup_logging()
+    logger.debug("main called")
 
     parser = argparse.ArgumentParser(
         prog="ccm",
@@ -66,6 +74,24 @@ def main() -> None:
         action="store_true",
         dest="json_output",
         help="output results as JSON",
+    )
+    status_parser.add_argument(
+        "--state",
+        choices=["working", "idle", "needs_input"],
+        default=None,
+        help="filter sessions by state",
+    )
+    status_parser.add_argument(
+        "--agent",
+        choices=["claude", "opencode"],
+        default=None,
+        help="filter sessions by agent type",
+    )
+    status_parser.add_argument(
+        "--sort",
+        choices=["state", "agent_type", "tmux_target"],
+        default="state",
+        help="sort sessions by field (default: state)",
     )
     status_parser.set_defaults(func=_run_status)
 

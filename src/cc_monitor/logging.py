@@ -7,6 +7,7 @@ from loguru import logger
 
 
 def setup_logging() -> None:
+    logger.debug("setup_logging called")
     logger.remove()
 
     level = os.environ.get("LOGGING_LEVEL", "INFO").upper()

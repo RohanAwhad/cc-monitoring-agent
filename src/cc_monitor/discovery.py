@@ -43,6 +43,7 @@ def list_all_panes() -> list[RawPane]:
 
 
 def _parse_pane_lines(output: str) -> list[RawPane]:
+    logger.debug("_parse_pane_lines called with {} bytes", len(output))
     panes: list[RawPane] = []
     for line in output.strip().splitlines():
         parts = line.split()
@@ -67,6 +68,7 @@ def _parse_pane_lines(output: str) -> list[RawPane]:
 
 
 def classify_pane(pane: RawPane) -> Literal["claude_candidate", "opencode", "other"]:
+    logger.debug("classify_pane cmd={!r}", pane.current_command)
     if pane.current_command == "opencode":
         return "opencode"
     if _VERSION_RE.match(pane.current_command):
@@ -75,6 +77,7 @@ def classify_pane(pane: RawPane) -> Literal["claude_candidate", "opencode", "oth
 
 
 def verify_claude_candidate(pane_pid: int) -> bool:
+    logger.debug("verify_claude_candidate pid={}", pane_pid)
     result = subprocess.run(
         ["ps", "-eo", "pid,ppid,comm"],
         capture_output=True,
@@ -86,6 +89,7 @@ def verify_claude_candidate(pane_pid: int) -> bool:
 
 
 def _check_child_processes(ps_output: str, parent_pid: int) -> bool:
+    logger.debug("_check_child_processes parent_pid={}", parent_pid)
     for line in ps_output.strip().splitlines()[1:]:
         parts = line.split(None, 2)
         if len(parts) < 3:

@@ -13,6 +13,7 @@ from cc_monitor.models import AgentSession
 
 
 def _build_table(sessions: list[AgentSession]) -> Table:
+    logger.debug("_build_table called with {} sessions", len(sessions))
     table = Table(title="Claude Code Monitor (watch mode)")
     table.add_column("Tmux Target")
     table.add_column("Agent")
