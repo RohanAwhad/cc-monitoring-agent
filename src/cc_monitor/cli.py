@@ -13,6 +13,27 @@ from cc_monitor.analyzer import analyze_sessions
 from cc_monitor.discovery import discover_sessions
 from cc_monitor.display import display_results
 from cc_monitor.logging import setup_logging
+from cc_monitor.models import AgentSession
+
+
+def _apply_session_filters(
+    sessions: list[AgentSession],
+    state: str | None,
+    agent: str | None,
+) -> list[AgentSession]:
+    result = sessions
+    if state is not None:
+        result = [s for s in result if s.state == state]
+    if agent is not None:
+        result = [s for s in result if s.agent_type == agent]
+    return result
+
+
+def _apply_session_ordering(
+    sessions: list[AgentSession],
+    key: str,
+) -> list[AgentSession]:
+    return sorted(sessions, key=lambda s: getattr(s, key))
 
 
 def _run_status(args: argparse.Namespace) -> None:
@@ -25,6 +46,9 @@ def _run_status(args: argparse.Namespace) -> None:
     sessions = analyze_sessions(sessions)
     elapsed_ms = (time.monotonic() - t0) * 1000
     log.info("found {} sessions ({:.0f}ms)", len(sessions), elapsed_ms)
+
+    sessions = _apply_session_filters(sessions, args.filter_state, args.filter_agent)
+    sessions = _apply_session_ordering(sessions, args.sort_key)
 
     if args.json_output:
         log.debug("outputting JSON results")
@@ -58,6 +82,7 @@ def main() -> None:
         dest="json_output",
         help="output results as JSON",
     )
+    parser.set_defaults(filter_state=None, filter_agent=None, sort_key="state")
     subparsers = parser.add_subparsers(dest="command")
 
     status_parser = subparsers.add_parser("status", help="show current session status")
@@ -66,6 +91,27 @@ def main() -> None:
         action="store_true",
         dest="json_output",
         help="output results as JSON",
+    )
+    status_parser.add_argument(
+        "--state",
+        choices=["working", "idle", "needs_input"],
+        default=None,
+        dest="filter_state",
+        help="filter sessions by state",
+    )
+    status_parser.add_argument(
+        "--agent",
+        choices=["claude", "opencode"],
+        default=None,
+        dest="filter_agent",
+        help="filter sessions by agent type",
+    )
+    status_parser.add_argument(
+        "--sort",
+        choices=["state", "agent_type", "tmux_target"],
+        default="state",
+        dest="sort_key",
+        help="sort sessions by field (default: state)",
     )
     status_parser.set_defaults(func=_run_status)
 

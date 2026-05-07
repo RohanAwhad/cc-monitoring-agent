@@ -1,14 +1,29 @@
 # Archivist Agent Output
 
-- **timestamp:** 2026-05-07T17:59:02Z
+- **timestamp:** 2026-05-07T19:22:56Z
 - **exit_code:** 0
 
 ---
 
-All archival tasks complete:
+Cycle 4 archive complete. Here's what was written:
 
-1. **Experiment note written** — `.factory/archive/experiments/cc-monitoring-agent-015.md` (experiment #9, cycle 3 H1, KEEP verdict)
-2. **Dashboard updated** — Status, score history, experiment history, and strategy snapshots sections all updated with cycle 3 H1 results
-3. **Strategy snapshot written** — `strategies/cc-monitoring-agent-2026-05-07-cycle3-h1-complete.md` documenting H1 outcome and what's unblocked
-4. **Patterns updated** — Two new patterns added: operational merge experiments don't improve composite, and merge conflict resolution should preserve newer type signatures
-5. **Performance report regenerated** — `factory report-update` completed successfully (7 experiments, 3 CEO verdicts parsed)
+**Experiment notes** (4 files):
+- `.factory/archive/experiments/cc-monitoring-agent-020.md` — Updated from PENDING to REVERT, capability_surface target scaling (-0.003)
+- `.factory/archive/experiments/cc-monitoring-agent-021.md` — Summary mode no-new-files, anti_pattern block despite +0.008 gain
+- `.factory/archive/experiments/cc-monitoring-agent-022.md` — Desktop notifications, lint regression (-0.016)
+- `.factory/archive/experiments/cc-monitoring-agent-023.md` — LLM analysis, factory_effectiveness death spiral (-0.0002)
+
+**Strategy snapshot**:
+- `.factory/archive/strategies/cc-monitoring-agent-2026-05-07-cycle4-complete.md` — Full cycle summary with systemic blockers table
+
+**Project dashboard**:
+- `.factory/archive/cc-monitoring-agent.md` — Updated with cycle 4 section, score history, experiment history (24 total: 11 kept, 12 reverted, 1 error)
+
+**Cross-project patterns** (5 new patterns appended):
+- capability_surface target formula punishes clean modules
+- No-new-files strategy avoids target scaling
+- Anti-pattern guard blocks valid strategy pivots
+- Factory effectiveness death spiral
+- Scope guard false positives from orchestrator artifacts
+
+**Performance report**: regenerated via `factory report-update`.
