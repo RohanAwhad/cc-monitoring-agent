@@ -1,6 +1,13 @@
+from __future__ import annotations
+
 import argparse
+import dataclasses
 import json
 import sys
+
+from cc_monitor.analyzer import analyze_sessions
+from cc_monitor.discovery import discover_sessions
+from cc_monitor.display import display_results
 
 
 def main() -> None:
@@ -16,10 +23,15 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    sessions: list[dict[str, str]] = []
+    sessions = discover_sessions()
+    sessions = analyze_sessions(sessions)
 
     if args.json_output:
-        json.dump({"sessions": sessions}, sys.stdout, indent=2)
+        json.dump(
+            {"sessions": [dataclasses.asdict(s) for s in sessions]},
+            sys.stdout,
+            indent=2,
+        )
         print()
     else:
-        print("No agent sessions found in tmux.")
+        display_results(sessions)
