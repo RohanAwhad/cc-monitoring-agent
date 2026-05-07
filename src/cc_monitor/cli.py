@@ -39,6 +39,21 @@ def _run_status(args: argparse.Namespace) -> None:
         display_results(sessions)
 
 
+def _run_summary(args: argparse.Namespace) -> None:
+    sessions = discover_sessions()
+    sessions = analyze_sessions(sessions)
+    total = len(sessions)
+    if total == 0:
+        print("0 agents", end="")
+        return
+    counts: dict[str, int] = {}
+    for s in sessions:
+        counts[s.state] = counts.get(s.state, 0) + 1
+    parts = [f"{v} {k}" for k, v in counts.items()]
+    line = f"{total} agents: {', '.join(parts)}"
+    print(line, end="")
+
+
 def _run_watch(args: argparse.Namespace) -> None:
     from cc_monitor.watch import watch_loop
 
@@ -68,6 +83,12 @@ def main() -> None:
         help="output results as JSON",
     )
     status_parser.set_defaults(func=_run_status)
+
+    summary_parser = subparsers.add_parser(
+        "summary",
+        help="one-line summary for tmux status bar",
+    )
+    summary_parser.set_defaults(func=_run_summary)
 
     watch_parser = subparsers.add_parser(
         "watch", help="continuously monitor sessions with live refresh"
