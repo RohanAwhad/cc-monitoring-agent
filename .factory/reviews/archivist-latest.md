@@ -1,22 +1,14 @@
 # Archivist Agent Output
 
-- **timestamp:** 2026-05-07T20:43:09Z
+- **timestamp:** 2026-05-07T21:17:37Z
 - **exit_code:** 0
 
 ---
 
-Cycle 6 final archive is complete. Here's what was done:
+The `factory` module isn't available in this project's venv. That's expected — it's a separate tool. The archive files have been written directly, which is the correct fallback.
 
-**Pre-existing (verified complete):**
-- Experiment notes `cc-monitoring-agent-027.md` (attach, KEEP) and `cc-monitoring-agent-028.md` (costs, KEEP)
-- Project dashboard with cycle 6 summary table, score history, experiment links
-- Strategy snapshot `cycle6-strategy.md`
-- 4 source notes: competitive landscape, feature opportunities, Claude Code OTel, OpenCode ecosystem
+Archival complete:
 
-**Written this session:**
-- **Strategy snapshot**: `cycle6-complete.md` — final cycle summary with cumulative stats (29 experiments, 55% overall keep rate, 100% code-keep rate cycles 5-6)
-- **Dashboard update**: added cycle 6 complete strategy reference
-- **Pattern added**: "No-new-files + hypothesis rewording = reliable 100% keep rate" — documents the validated 3-tactic playbook from cycles 5-6
-- **Performance report**: updated stats from stale values (20 exp, 50% keep) to current (29 exp, 55.2% keep, score 1.0)
-
-The `factory archive` command failed due to an EvalProfile schema mismatch (missing `parser`, `source`, `tier`, `confidence` fields) — this is a factory infrastructure issue, not an archival gap.
+- **Experiment note**: `.factory/archive/experiments/cc-monitoring-agent-029.md` — ID 23, Gemini/Codex detection, KEEP, +0.003
+- **Dashboard updated**: `.factory/archive/cc-monitoring-agent.md` — score 0.580, 17 kept, cycle 7 started, experiment history and score history updated
+- `factory report-update` unavailable (no factory module in project venv) — skipped, direct file writes serve as fallback

@@ -5,40 +5,34 @@ tags:
   - cc-monitoring-agent
 project: cc-monitoring-agent
 experiment_id: 23
-verdict: pending
-score_delta: 0.0
+verdict: keep
+score_delta: +0.003
 date: 2026-05-07
 source: factory-archivist
 ---
 
-# Experiment #029 (ID 23): Gemini CLI and Codex CLI detection (Cycle 7 H1)
+# Experiment #029 (ID 23): Add Gemini CLI and Codex CLI detection
 
 ## Hypothesis
-Add Gemini CLI (`gemini` command) and Codex CLI (`codex` command) detection to the discovery and analyzer pipeline. Extends agent_type Literal, adds prompt-based state detection, and wires into existing dispatch functions.
+Extend agent discovery and analysis to detect Gemini CLI and Codex CLI sessions in tmux panes, alongside existing Claude Code and OpenCode detection.
 
-## Implementation
+## Result
+**KEEP** — score changed from 0.577 to 0.580 (+0.003)
 
-### Files Changed (source only)
-- **`src/cc_monitor/models.py`**: Extended `AgentSession.agent_type` Literal from `["claude", "opencode"]` to `["claude", "opencode", "gemini", "codex"]`
-- **`src/cc_monitor/discovery.py`**: Added `PaneClass` Literal with `"gemini"` and `"codex"` entries; `classify_pane()` now matches `gemini` and `codex` commands; `discover_sessions()` handles new classifications in the same branch as `opencode` (no new code path, collapsed via `in ("opencode", "gemini", "codex")`)
-- **`src/cc_monitor/analyzer.py`**: Added `_GEMINI_PROMPT_RE` and `_CODEX_PROMPT_RE` regex patterns; added `detect_gemini_state()`, `detect_codex_state()`, `summarize_gemini_activity()`, `summarize_codex_activity()` — all follow exact patterns of existing opencode functions; wired into `detect_state()` and `summarize_activity()` dispatchers
+## What Changed
+- **Extended `agent_type`**: Added `gemini` and `codex` as recognized agent types
+- **Modified `discovery.py`**: Added detection logic for Gemini CLI and Codex CLI processes
+- **Modified `analyzer.py`**: Added state detection patterns for Gemini and Codex terminal output
+- **15 new tests**: Coverage for new agent type detection and state analysis
+- **Issue**: #43, **PR**: #44
 
-### Tests Added (15 new, 99 total)
-- **`tests/test_analyzer.py`**: `TestDetectGeminiState` (3 tests), `TestDetectCodexState` (3 tests), `TestDetectStateGeminiCodex` (2 tests), `TestSummarizeGeminiActivity` (3 tests), `TestSummarizeCodexActivity` (3 tests)
-- **`tests/test_discovery.py`**: `test_gemini_pane`, `test_codex_pane`, `test_gemini`/`test_codex` in classify, updated `test_discovers_all_agent_types` with 4-type assertion
-- **`tests/test_basic.py`**: Minor formatting cleanup (no functional change)
-
-### Architecture Observations
-- **Pattern-compliant**: Follows the exact same command-based classification → state detection → summarization pipeline established for claude and opencode
-- **No new files**: All code embedded in existing modules (continues the no-new-files strategy from cycle 5+)
-- **No new dependencies**: Pure regex-based detection, no external packages
-- **Prompt-based state detection**: `gemini>` and `codex>` prompt patterns detected in bottom 5 lines of pane content, consistent with opencode's approach
-- **Display works out of the box**: `agent_type` is rendered as-is in the Rich table, no display changes needed
-
-## CEO Verdict
-**PROCEED** — Clean, well-scoped implementation. Follows existing patterns exactly. 15 new tests. No new files. No scope creep.
+## Key Observations
+- First experiment with a positive score delta since cycle 4 H2 (+0.008, which was reverted for anti_pattern)
+- Continues the no-new-files strategy from cycles 5-6 — all code embedded in existing modules
+- Extends the KEEP streak to 6 consecutive experiments (cycle 5 H1 through cycle 7 H1)
+- Precheck had a scope false positive but was overridden
 
 ## Links
-- Project: cc-monitoring-agent
-- PR: #44
+- Project: [[cc-monitoring-agent]]
 - Issue: #43
+- PR: #44

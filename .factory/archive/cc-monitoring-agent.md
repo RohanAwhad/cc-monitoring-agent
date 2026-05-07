@@ -10,15 +10,15 @@ source: factory-archivist
 
 ## Summary
 
-A Python CLI tool that scans all tmux panes, detects running Claude Code and OpenCode sessions, and displays a dashboard showing: what each agent is doing, whether it's waiting for user input, and the tmux coordinates to jump there. MVP: single command, snapshot view, no daemon or persistence.
+A Python CLI tool that scans all tmux panes, detects running Claude Code, OpenCode, Gemini CLI, and Codex CLI sessions, and displays a dashboard showing: what each agent is doing, whether it's waiting for user input, and the tmux coordinates to jump there. MVP: single command, snapshot view, no daemon or persistence.
 
 ## Status
 
-- **State**: improve (build complete, cycles 1-5 complete — backlog cleared, cycle 6 complete)
-- **Current Score**: 0.575 (factory composite) / 1.0 (project eval)
-- **Experiments Run**: 29 total (7 build + 5 cycle 1 + 3 cycle 2 + 5 cycle 3 + 4 cycle 4 + 3 cycle 5 + 2 cycle 6)
-- **Kept**: 16, **Reverted**: 12, **Error**: 1
-- **Cycle 6 Status**: H1 (attach) KEPT, H2 (costs) KEPT — cycle complete
+- **State**: improve (build complete, cycles 1-6 complete, cycle 7 in progress)
+- **Current Score**: 0.580 (factory composite) / 1.0 (project eval)
+- **Experiments Run**: 30 total (7 build + 5 cycle 1 + 3 cycle 2 + 5 cycle 3 + 4 cycle 4 + 3 cycle 5 + 2 cycle 6 + 1 cycle 7)
+- **Kept**: 17, **Reverted**: 12, **Error**: 1
+- **Cycle 7 Status**: H1 (Gemini/Codex detection) KEPT — in progress
 - **Total Tests**: 107, **Coverage**: 97%
 - **Build Phases**: 7/7 complete
 - **Improve Cycle 1**: Complete — 4 hypotheses delivered (H1-H4), 5 experiments (4 kept, 1 reverted), keep rate 80%
@@ -61,6 +61,7 @@ A Python CLI tool that scans all tmux panes, detects running Claude Code and Ope
 - **Cycle 5 H3 (desktop alerts)**: Factory 0.575 → KEEP (delta 0.0, eval 1.0)
 - **Cycle 6 H1 (attach subcommand)**: Score 1.0 → KEEP (delta 0.0, eval 1.0)
 - **Cycle 6 H2 (token/cost estimation)**: Score 1.0 → KEEP (delta 0.0, eval 1.0)
+- **Cycle 7 H1 (Gemini/Codex detection)**: Factory 0.577 → 0.580, KEEP (delta +0.003, eval 1.0)
 
 ## Improve Cycle 1 Summary (2026-05-07)
 
@@ -266,3 +267,6 @@ A Python CLI tool that scans all tmux panes, detects running Claude Code and Ope
 ### Improve Cycle 6 (Experiments 027-028 — complete, 2/2 kept)
 - [Experiment #027](experiments/cc-monitoring-agent-027.md) — Attach subcommand for quick-jump navigation (**KEEP**, 0.0, PR #40)
 - [Experiment #028](experiments/cc-monitoring-agent-028.md) — Token/cost estimation from conversation files (**KEEP**, 0.0, PR #42)
+
+### Improve Cycle 7 (Experiments 029+ — in progress)
+- [Experiment #029](experiments/cc-monitoring-agent-029.md) — Gemini CLI and Codex CLI detection (**KEEP**, +0.003, PR #44)
