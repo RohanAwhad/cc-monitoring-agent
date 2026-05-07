@@ -269,5 +269,6 @@ class TestCLIIntegration:
             "summary",
             "pane_pid",
             "tmux_target",
+            "cwd",
         }
         assert set(session.keys()) == expected_keys
