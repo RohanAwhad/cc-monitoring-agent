@@ -60,3 +60,14 @@ def test_bare_ccm_json_backward_compat(
     captured = capsys.readouterr()  # type: ignore[attr-defined]
     data = json.loads(captured.out)
     assert "sessions" in data
+
+
+@patch("cc_monitor.discovery.list_all_panes", return_value=[])
+def test_cli_summary_subcommand(
+    mock_panes: object, monkeypatch: object, capsys: object
+) -> None:
+    monkeypatch.setattr(sys, "argv", ["ccm", "summary"])  # type: ignore[attr-defined]
+    main()
+    captured = capsys.readouterr()  # type: ignore[attr-defined]
+    assert "0 agents:" in captured.out
+    assert captured.out == "0 agents:"

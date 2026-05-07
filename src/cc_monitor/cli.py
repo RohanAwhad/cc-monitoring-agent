@@ -11,7 +11,7 @@ from loguru import logger
 
 from cc_monitor.analyzer import analyze_sessions
 from cc_monitor.discovery import discover_sessions
-from cc_monitor.display import display_results
+from cc_monitor.display import display_results, format_summary_line
 from cc_monitor.logging import setup_logging
 
 
@@ -37,6 +37,12 @@ def _run_status(args: argparse.Namespace) -> None:
     else:
         log.debug("displaying table results")
         display_results(sessions)
+
+
+def _run_summary(args: argparse.Namespace) -> None:
+    sessions = discover_sessions()
+    sessions = analyze_sessions(sessions)
+    print(format_summary_line(sessions), end="")
 
 
 def _run_watch(args: argparse.Namespace) -> None:
@@ -68,6 +74,11 @@ def main() -> None:
         help="output results as JSON",
     )
     status_parser.set_defaults(func=_run_status)
+
+    summary_parser = subparsers.add_parser(
+        "summary", help="one-line summary for tmux status bar"
+    )
+    summary_parser.set_defaults(func=_run_summary)
 
     watch_parser = subparsers.add_parser(
         "watch", help="continuously monitor sessions with live refresh"
