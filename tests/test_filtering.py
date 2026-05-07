@@ -109,7 +109,8 @@ class TestStatusCLIFlags:
     ) -> None:
         mock_discover.return_value = []  # type: ignore[attr-defined]
         mock_analyze.return_value = SESSIONS  # type: ignore[attr-defined]
-        monkeypatch.setattr(sys, "argv", ["ccm", "status", "--state", "working", "--json"])  # type: ignore[attr-defined]
+        argv = ["ccm", "status", "--state", "working", "--json"]
+        monkeypatch.setattr(sys, "argv", argv)  # type: ignore[attr-defined]
         main()
         captured = capsys.readouterr()  # type: ignore[attr-defined]
         data = json.loads(captured.out)
@@ -127,7 +128,8 @@ class TestStatusCLIFlags:
     ) -> None:
         mock_discover.return_value = []  # type: ignore[attr-defined]
         mock_analyze.return_value = SESSIONS  # type: ignore[attr-defined]
-        monkeypatch.setattr(sys, "argv", ["ccm", "status", "--agent", "claude", "--json"])  # type: ignore[attr-defined]
+        argv = ["ccm", "status", "--agent", "claude", "--json"]
+        monkeypatch.setattr(sys, "argv", argv)  # type: ignore[attr-defined]
         main()
         captured = capsys.readouterr()  # type: ignore[attr-defined]
         data = json.loads(captured.out)
@@ -163,9 +165,8 @@ class TestStatusCLIFlags:
     ) -> None:
         mock_discover.return_value = []  # type: ignore[attr-defined]
         mock_analyze.return_value = SESSIONS  # type: ignore[attr-defined]
-        monkeypatch.setattr(  # type: ignore[attr-defined]
-            sys, "argv", ["ccm", "status", "--state", "idle", "--sort", "agent", "--json"]
-        )
+        argv = ["ccm", "status", "--state", "idle", "--sort", "agent", "--json"]
+        monkeypatch.setattr(sys, "argv", argv)  # type: ignore[attr-defined]
         main()
         captured = capsys.readouterr()  # type: ignore[attr-defined]
         data = json.loads(captured.out)
