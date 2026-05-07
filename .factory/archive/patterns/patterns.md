@@ -54,3 +54,19 @@ When multiple correct PRs accumulate on branches because of eval blockers, mergi
 ## Merge conflict resolution in stacked PRs — preserve newer type signatures
 Discovered in cc-monitoring-agent cycle 3 experiment #9 (015).
 When merging PRs that were branched before other PRs landed, the key conflict pattern is old vs new function signatures. Always preserve the newer, more specific types (e.g., `Literal["working", "idle"]` over `str`) and the newer architecture (e.g., subcommand structure over flat CLI). The builder correctly identified that PR #9's older signatures should yield to the type-safe versions from PR #2.
+
+## Anti-pattern precheck correctly prevents wasted retry cycles
+Discovered in cc-monitoring-agent cycle 3 experiment #11 (017).
+When an experiment is reverted with a score regression, retrying the same hypothesis with minor tweaks triggers the anti_pattern precheck. This is a correct guard — if the root cause is systemic (overlay dimension misconfiguration), no amount of code-level adjustment will change the outcome. The anti_pattern check saved a full builder cycle that would have produced the same revert. Lesson: when a hypothesis fails due to infrastructure, fix the infrastructure before retrying.
+
+## Builder hygiene — dirty working tree contaminates PRs
+Discovered in cc-monitoring-agent cycle 3 experiment #12 (018).
+If the builder's working directory has uncommitted changes from prior factory operations (e.g., `.factory/events.jsonl`, `.factory/results.tsv`), staging for a PR can pick up these unrelated files, causing an ERROR verdict. Prevention: builders should run `git status` before staging and exclude `.factory/` files, or `.factory/` should be in `.gitignore`. This wasted an experiment slot without providing any signal about the code hypothesis.
+
+## Factory eval threshold can be mathematically unachievable — detect early
+Discovered in cc-monitoring-agent cycle 3 experiment #13 (019).
+When overlay dimensions (tests, coverage, research_grounding) are broken or unscored, they cap the maximum achievable composite score. If the precheck threshold exceeds this cap, ALL code-adding experiments will be reverted regardless of quality. Detection: calculate the maximum possible composite from current dimension ceilings before starting a cycle. If max < threshold, the cycle is guaranteed to produce 0% keep rate. In cc-monitoring-agent, max was ~0.645 vs threshold 0.800 — 8 experiments across cycles 2-3 were wasted on an impossible target.
+
+## Diminishing returns across improve cycles — know when to stop
+Discovered in cc-monitoring-agent across cycles 1-3 (20 total experiments).
+Keep rates degraded across cycles: 100% (build) → 80% (cycle 1) → 0% (cycle 2) → 20% (cycle 3). When a project hits 0% keep rate in a cycle, the next cycle should either (a) fix the root cause infrastructure issue or (b) declare the project functionally complete. Running more code hypotheses against a broken eval produces guaranteed waste. The cumulative cost of cycles 2-3 was 8 experiments with 1 operational keep and 0 code keeps.

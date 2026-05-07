@@ -14,17 +14,21 @@ A Python CLI tool that scans all tmux panes, detects running Claude Code and Ope
 
 ## Status
 
-- **State**: improve (build complete, cycle 1 complete, cycle 2 complete — blocked, cycle 3 H1 complete)
+- **State**: improve (build complete, cycle 1 complete, cycle 2 complete — blocked, cycle 3 complete — blocked)
 - **Current Score**: 0.537 (factory composite) / 1.0 (project eval)
-- **Experiments Run**: 16 total (7 build + 5 improve cycle 1 + 3 improve cycle 2 + 1 improve cycle 3), 4 reverted
-- **Kept**: 12, **Reverted**: 4
-- **Cycle 3 Status**: H1 complete (eval blocker fix + 4 PR merge), H2-H5 unblocked
+- **Experiments Run**: 20 total (7 build + 5 improve cycle 1 + 3 improve cycle 2 + 5 improve cycle 3), 8 reverted, 1 error
+- **Kept**: 11, **Reverted**: 8, **Error**: 1
 - **Total Tests**: 81, **Coverage**: 97%
 - **Build Phases**: 7/7 complete
-- **Improve Cycle 1**: Complete — 4 hypotheses delivered (H1-H4), 5 experiments (4 kept, 1 reverted)
-- **Improve Cycle 2**: Complete — 3 hypotheses attempted, ALL 3 REVERTED due to systemic eval issue
-- **Improve Cycle 3**: H1 complete — mypy_path fix applied, 4 PRs merged to main. Factory composite still low due to overlay dimension issues (system Python missing third-party stubs)
-- **Remaining blocker**: Factory eval type_check still reports 14 errors (import-not-found for loguru/rich stubs) and tests/coverage show "not detected" — factory infrastructure issues, not project code issues
+- **Improve Cycle 1**: Complete — 4 hypotheses delivered (H1-H4), 5 experiments (4 kept, 1 reverted), keep rate 80%
+- **Improve Cycle 2**: Complete — 3 hypotheses attempted, ALL 3 REVERTED due to systemic eval issue, keep rate 0%
+- **Improve Cycle 3**: Complete — 5 experiments (1 kept, 3 reverted, 1 error), keep rate 20%
+  - H1 (KEEP): mypy_path fix + 4 PR merge — operational prerequisite
+  - H2 (REVERT): Filtering/sorting — score regression -0.018
+  - H2 retry (REVERT): Filtering/sorting — anti_pattern + score noise -0.001
+  - H3 (ERROR): Summary mode — dirty factory files in PR
+  - H3 retry (REVERT): Summary mode — threshold 0.800 mathematically unachievable (max possible ~0.645)
+- **Systemic blocker**: Factory eval threshold (0.800) is unachievable — tests/coverage/research_grounding overlay dimensions cap max score at ~0.645
 
 ## Score History
 
@@ -38,6 +42,10 @@ A Python CLI tool that scans all tmux panes, detects running Claude Code and Ope
 - **Cycle 2 H2 (one-line summary)**: Factory 0.539 → REVERT (delta -0.049, systemic eval failure)
 - **Cycle 2 H3 (notifications)**: Factory 0.539 → REVERT (delta -0.032, systemic eval failure)
 - **Cycle 3 H1 (eval blocker + PR merge)**: Factory 0.539 → 0.537 — operational experiment, mypy_path fix + 4 PRs merged, project eval 1.0
+- **Cycle 3 H2 (filtering/sorting)**: Factory 0.537 → REVERT (delta -0.018, type_check regression)
+- **Cycle 3 H2 retry (filtering/sorting)**: Factory 0.537 → REVERT (delta -0.001, anti_pattern + noise)
+- **Cycle 3 H3 (summary mode)**: ERROR — PR included dirty factory files
+- **Cycle 3 H3 retry (summary mode)**: Factory 0.572 → REVERT (threshold 0.800 unachievable, max possible ~0.645)
 
 ## Improve Cycle 1 Summary (2026-05-07)
 
@@ -64,6 +72,27 @@ A Python CLI tool that scans all tmux panes, detects running Claude Code and Ope
 **Root cause**: Factory eval runs mypy/lint overlay dimensions using system Python, which cannot resolve project imports in src-layout (`src/cc_monitor/`). Every new Python file amplifies unresolvable imports, causing score regression. All 3 implementations were functionally correct (e2e pass, project eval 1.0).
 **Conclusion**: Further improve cycles on this project are blocked until the factory eval infrastructure is fixed to use `uv run` or project venvs for overlay dimensions.
 
+## Improve Cycle 3 Summary (2026-05-07)
+
+| Experiment | Hypothesis | Category | Verdict | Score Delta | Key Result |
+|---|---|---|---|---|---|
+| #015 (ID 9) | Fix eval blocker + merge 4 PRs | FIX | **KEEP** | -0.002 | mypy_path fix, 4 PRs merged, project eval 1.0 |
+| #016 (ID 10) | Filtering/sorting flags | EXPLOIT | **REVERT** | -0.018 | Score regression from type_check overlay |
+| #017 (ID 11) | Filtering/sorting retry | EXPLOIT | **REVERT** | -0.001 | Anti-pattern blocked + score noise |
+| #018 (ID 12) | Summary mode | EXPLOIT | **ERROR** | 0.0 | PR included dirty .factory/ files |
+| #019 (ID 13) | Summary mode retry | EXPLOIT | **REVERT** | 0.0 | Threshold 0.800 unachievable (max ~0.645) |
+
+**Keep rate**: 20% (1/5) — only the operational H1 was kept
+**Post-H1 keep rate**: 0% (0/4) — all code-adding experiments blocked
+**Root cause**: Factory eval threshold (0.800) is mathematically unachievable. Three overlay dimensions are broken:
+- `tests`: 0.5 (factory can't detect pytest suite)
+- `coverage`: 0.5 (factory can't detect coverage config)
+- `research_grounding`: 0.0 (dimension not scored)
+
+These three dimensions alone cap the maximum composite at ~0.645, making the 0.800 precheck threshold impossible to reach regardless of code quality.
+
+**Conclusion**: cc-monitoring-agent is functionally complete (project eval 1.0, 81 tests, 97% coverage, mypy clean) but cannot improve its factory composite without infrastructure changes to the eval system.
+
 ## Build Plan (CEO-Approved 2026-05-07)
 
 | Phase | Description | Category | Priority | Status |
@@ -84,8 +113,8 @@ CEO Verdict: **PROCEED**. Research thorough and actionable.
 
 1. **FIX**: Add pytest-cov and coverage configuration — make test quality measurable ✅ (H2)
 2. **EXPLOIT**: Watch mode (`ccm watch`) — highest-impact feature, Rich Live, capability_surface growth ✅ (H3)
-3. **EXPLOIT**: Filtering and sorting flags (`--state`, `--agent`, `--sort`) ❌ (Cycle 2, reverted — eval systemic)
-4. **EXPLORE**: One-line summary mode for tmux/shell prompt integration ❌ (Cycle 2, reverted — eval systemic)
+3. **EXPLOIT**: Filtering and sorting flags (`--state`, `--agent`, `--sort`) ❌ (Cycle 2+3, reverted — eval systemic)
+4. **EXPLORE**: One-line summary mode for tmux/shell prompt integration ❌ (Cycle 2+3, reverted — eval systemic)
 5. **EXPLORE**: State change notifications via macOS osascript ❌ (Cycle 2, reverted — eval systemic)
 
 ### CEO Priorities for Strategist
@@ -169,6 +198,7 @@ CEO Verdict: **PROCEED**. Research thorough and actionable.
 - [Cycle 3 Research (2026-05-07)](strategies/cc-monitoring-agent-2026-05-07-cycle3-research.md) — Research complete, eval blocker fix identified, competitive landscape matured
 - [Cycle 3 Strategy (2026-05-07)](strategies/cc-monitoring-agent-2026-05-07-cycle3-strategy.md) — CEO PROCEED, 5 hypotheses (FIX eval blocker + 4 EXPLOIT), H1 prerequisite for all
 - [Cycle 3 H1 Complete (2026-05-07)](strategies/cc-monitoring-agent-2026-05-07-cycle3-h1-complete.md) — Eval blocker fixed, 4 PRs merged, project eval 1.0, factory composite 0.537
+- [Cycle 3 Complete (2026-05-07)](strategies/cc-monitoring-agent-2026-05-07-cycle3-complete.md) — 5 experiments (1 kept, 3 reverted, 1 error), threshold unachievable
 
 ## Experiment History
 
@@ -193,5 +223,9 @@ CEO Verdict: **PROCEED**. Research thorough and actionable.
 - [Experiment #013](experiments/cc-monitoring-agent-013.md) — One-line summary mode (**REVERT**, -0.049, systemic eval)
 - [Experiment #014](experiments/cc-monitoring-agent-014.md) — State change notifications (**REVERT**, -0.032, systemic eval)
 
-### Improve Cycle 3 (Experiment 015+)
+### Improve Cycle 3 (Experiments 015-019)
 - [Experiment #015](experiments/cc-monitoring-agent-015.md) — Fix eval blocker + merge 4 PRs to main (**KEEP**, H1, operational, project eval 1.0)
+- [Experiment #016](experiments/cc-monitoring-agent-016.md) — Filtering/sorting flags (**REVERT**, -0.018, type_check overlay)
+- [Experiment #017](experiments/cc-monitoring-agent-017.md) — Filtering/sorting retry (**REVERT**, -0.001, anti_pattern + noise)
+- [Experiment #018](experiments/cc-monitoring-agent-018.md) — Summary mode (**ERROR**, dirty factory files in PR)
+- [Experiment #019](experiments/cc-monitoring-agent-019.md) — Summary mode retry (**REVERT**, threshold unachievable, max ~0.645)
