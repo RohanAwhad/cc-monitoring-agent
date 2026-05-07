@@ -1,0 +1,1 @@
+Add Gemini CLI and Codex CLI detection to discovery and analyzer
