@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from cc_monitor.display import display_results
+from cc_monitor.display import display_results, format_summary
 from cc_monitor.models import AgentSession
 
 
@@ -78,3 +78,42 @@ class TestDisplayResults:
             _make_session(state="needs_input", summary="Needs input"),
         ]
         display_results(sessions)
+
+
+class TestFormatSummary:
+    def test_zero_sessions(self) -> None:
+        assert format_summary([]) == "0 agents"
+
+    def test_single_session(self) -> None:
+        sessions = [_make_session(state="working")]
+        result = format_summary(sessions)
+        assert result == "1 agent: 1 working"
+
+    def test_mixed_states(self) -> None:
+        sessions = [
+            _make_session(state="working", tmux_target="a:0.0"),
+            _make_session(state="working", tmux_target="b:0.0"),
+            _make_session(state="idle", tmux_target="c:0.0"),
+        ]
+        result = format_summary(sessions)
+        assert result == "3 agents: 2 working, 1 idle"
+
+    def test_all_states(self) -> None:
+        sessions = [
+            _make_session(state="working", tmux_target="a:0.0"),
+            _make_session(state="idle", tmux_target="b:0.0"),
+            _make_session(state="needs_input", tmux_target="c:0.0"),
+        ]
+        result = format_summary(sessions)
+        assert result == "3 agents: 1 working, 1 idle, 1 needs_input"
+
+    def test_no_ansi_codes(self) -> None:
+        sessions = [_make_session(state="working")]
+        result = format_summary(sessions)
+        assert "\033[" not in result
+        assert "[" not in result or result == "1 agent: 1 working"
+
+    def test_no_trailing_newline(self) -> None:
+        sessions = [_make_session(state="idle")]
+        result = format_summary(sessions)
+        assert not result.endswith("\n")

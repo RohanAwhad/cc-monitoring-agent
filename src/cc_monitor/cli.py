@@ -11,7 +11,7 @@ from loguru import logger
 
 from cc_monitor.analyzer import analyze_sessions
 from cc_monitor.discovery import discover_sessions
-from cc_monitor.display import display_results
+from cc_monitor.display import display_results, format_summary
 from cc_monitor.logging import setup_logging
 
 
@@ -39,7 +39,16 @@ def _run_status(args: argparse.Namespace) -> None:
         display_results(sessions)
 
 
+def _run_summary(args: argparse.Namespace) -> None:
+    logger.debug("summary subcommand invoked")
+    sessions = discover_sessions()
+    sessions = analyze_sessions(sessions)
+    logger.debug("summary: {} sessions discovered", len(sessions))
+    print(format_summary(sessions), end="")
+
+
 def _run_watch(args: argparse.Namespace) -> None:
+    logger.debug("watch subcommand invoked with interval={}", args.interval)
     from cc_monitor.watch import watch_loop
 
     watch_loop(interval=args.interval)
@@ -69,6 +78,11 @@ def main() -> None:
     )
     status_parser.set_defaults(func=_run_status)
 
+    summary_parser = subparsers.add_parser(
+        "summary", help="one-line summary for tmux status bar"
+    )
+    summary_parser.set_defaults(func=_run_summary)
+
     watch_parser = subparsers.add_parser(
         "watch", help="continuously monitor sessions with live refresh"
     )
@@ -81,6 +95,7 @@ def main() -> None:
     watch_parser.set_defaults(func=_run_watch)
 
     args = parser.parse_args()
+    logger.debug("parsed command={}", args.command)
 
     if args.command is None:
         _run_status(args)

@@ -39,3 +39,24 @@ def display_results(sessions: list[AgentSession]) -> None:
         )
 
     console.print(table)
+
+
+def format_summary(sessions: list[AgentSession]) -> str:
+    logger.debug("format_summary called with {} sessions", len(sessions))
+    total = len(sessions)
+    if total == 0:
+        logger.debug("no sessions, returning zero summary")
+        return "0 agents"
+
+    from collections import Counter
+
+    counts: Counter[str] = Counter(s.state for s in sessions)
+    logger.debug("state counts: {}", dict(counts))
+    parts: list[str] = []
+    for state in ("working", "idle", "needs_input"):
+        n = counts.get(state, 0)
+        if n > 0:
+            parts.append(f"{n} {state}")
+
+    label = "agent" if total == 1 else "agents"
+    return f"{total} {label}: {', '.join(parts)}"
