@@ -1,0 +1,1 @@
+Introduce compact output mode via dedicated summary subcommand

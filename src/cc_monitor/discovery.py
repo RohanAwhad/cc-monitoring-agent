@@ -66,10 +66,24 @@ def _parse_pane_lines(output: str) -> list[RawPane]:
     return panes
 
 
-def classify_pane(pane: RawPane) -> Literal["claude_candidate", "opencode", "other"]:
-    if pane.current_command == "opencode":
+PaneClass = Literal[
+    "claude_candidate",
+    "opencode",
+    "gemini",
+    "codex",
+    "other",
+]
+
+
+def classify_pane(pane: RawPane) -> PaneClass:
+    cmd = pane.current_command
+    if cmd == "opencode":
         return "opencode"
-    if _VERSION_RE.match(pane.current_command):
+    if cmd == "gemini":
+        return "gemini"
+    if cmd == "codex":
+        return "codex"
+    if _VERSION_RE.match(cmd):
         return "claude_candidate"
     return "other"
 
@@ -110,17 +124,20 @@ def discover_sessions() -> list[AgentSession]:
             pane.current_command,
             classification,
         )
-        if classification == "opencode":
+        if classification in ("opencode", "gemini", "codex"):
+            agent_type: Literal["opencode", "gemini", "codex"] = classification
             sessions.append(
                 AgentSession(
                     session_name=pane.session_name,
                     window_index=pane.window_index,
                     pane_index=pane.pane_index,
-                    agent_type="opencode",
+                    agent_type=agent_type,
                     state="idle",
                     summary="",
                     pane_pid=pane.pane_pid,
-                    tmux_target=f"{pane.session_name}:{pane.window_index}.{pane.pane_index}",
+                    tmux_target=(
+                        f"{pane.session_name}:{pane.window_index}.{pane.pane_index}"
+                    ),
                 )
             )
         elif classification == "claude_candidate":

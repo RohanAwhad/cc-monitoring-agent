@@ -1,0 +1,15 @@
+{
+  "id": 19,
+  "timestamp": "2026-05-07 15:52:40.462748",
+  "hypothesis": "Introduce compact output mode via dedicated summary subcommand",
+  "change_summary": "Added format_summary_line() in display.py, _run_summary() + summary subparser in cli.py. 5 new tests. Plain text output for tmux.",
+  "issue_number": 35,
+  "pr_number": 36,
+  "score_before": null,
+  "score_after": null,
+  "delta": null,
+  "verdict": "keep",
+  "cost_usd": null,
+  "notes": "ceo:keep score_delta=0.0 precheck=passed_manual agents_spawned=R,S,B pr_status=open_for_review hypothesis_type=code execution_artifacts=na e2e=pass backlog_cleared=yes",
+  "research_citations": []
+}

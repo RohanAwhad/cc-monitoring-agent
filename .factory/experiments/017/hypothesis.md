@@ -1,0 +1,1 @@
+LLM-powered pane analysis via AnthropicVertex — analyze_pane function inline in analyzer.py with graceful degradation
