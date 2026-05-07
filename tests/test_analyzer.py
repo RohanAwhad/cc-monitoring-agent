@@ -3,11 +3,16 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 from cc_monitor.analyzer import (
+    analyze_sessions,
     capture_pane,
     detect_claude_state,
     detect_opencode_state,
     detect_state,
+    summarize_activity,
+    summarize_claude_activity,
+    summarize_opencode_activity,
 )
+from cc_monitor.models import AgentSession
 
 CLAUDE_IDLE_PANE = """\
 ✻ Worked for 9m 26s
@@ -170,3 +175,154 @@ class TestCapturePaneIntegration:
     def test_failure_returns_empty(self, mock_run: MagicMock) -> None:
         mock_run.return_value = MagicMock(returncode=1, stdout="")
         assert capture_pane("bad:target") == ""
+
+
+CLAUDE_RECAP_PANE = """\
+  Some previous output here.
+
+※ recap: Building a writing assistance webapp with React frontend
+""".strip().splitlines()
+
+CLAUDE_THINKING_PANE = """\
+  still thinking...
+  Let me analyze this further.
+""".strip().splitlines()
+
+CLAUDE_COMPLETION_PANE = """\
+✻ Worked for 5m 12s
+
+  All tests pass now.
+""".strip().splitlines()
+
+
+class TestSummarizeClaudeActivity:
+    def test_recap_extraction(self) -> None:
+        result = summarize_claude_activity(CLAUDE_RECAP_PANE)
+        assert result == "Building a writing assistance webapp with React frontend"
+
+    def test_tool_call_extraction(self) -> None:
+        result = summarize_claude_activity(CLAUDE_WORKING_PANE)
+        assert result == "Using Read"
+
+    def test_thinking_state(self) -> None:
+        result = summarize_claude_activity(CLAUDE_THINKING_PANE)
+        assert result == "Thinking..."
+
+    def test_completion_marker(self) -> None:
+        result = summarize_claude_activity(CLAUDE_COMPLETION_PANE)
+        assert result == "Completed 5m 12s ago"
+
+    def test_fallback_last_meaningful_line(self) -> None:
+        lines = ["", "  Some meaningful output here.", "", ""]
+        result = summarize_claude_activity(lines)
+        assert result == "Some meaningful output here."
+
+    def test_empty_lines(self) -> None:
+        assert summarize_claude_activity([]) == ""
+
+    def test_decoration_only_lines(self) -> None:
+        lines = ["───────────────────────────", "  [████████████████░░░░████]", ""]
+        result = summarize_claude_activity(lines)
+        assert result == ""
+
+
+class TestSummarizeOpenCodeActivity:
+    def test_working_with_timer(self) -> None:
+        result = summarize_opencode_activity(OPENCODE_WORKING_PANE)
+        assert "Processing for" in result
+        assert "3m 53s" in result
+
+    def test_idle_returns_last_content(self) -> None:
+        result = summarize_opencode_activity(OPENCODE_IDLE_PANE)
+        assert result == "The refactoring is complete. All tests pass."
+
+    def test_empty_lines(self) -> None:
+        assert summarize_opencode_activity([]) == "Active session"
+
+    def test_fallback_active_session(self) -> None:
+        lines = ["  ┃", "  ┃", "  ╹▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀"]
+        result = summarize_opencode_activity(lines)
+        assert result == "Active session"
+
+
+class TestSummarizeActivity:
+    def test_dispatches_to_claude(self) -> None:
+        result = summarize_activity("claude", CLAUDE_WORKING_PANE)
+        assert result == "Using Read"
+
+    def test_dispatches_to_opencode(self) -> None:
+        result = summarize_activity("opencode", OPENCODE_WORKING_PANE)
+        assert "Processing for" in result
+
+    def test_unknown_agent(self) -> None:
+        assert summarize_activity("unknown", ["something"]) == ""
+
+
+class TestAnalyzeSessions:
+    @patch("cc_monitor.analyzer.capture_pane")
+    def test_updates_sessions(self, mock_capture: MagicMock) -> None:
+        mock_capture.return_value = "\n".join(CLAUDE_WORKING_PANE) + "\n"
+        session = AgentSession(
+            session_name="test",
+            window_index=0,
+            pane_index=0,
+            agent_type="claude",
+            state="idle",
+            summary="",
+            pane_pid=1234,
+            tmux_target="test:0.0",
+        )
+        result = analyze_sessions([session])
+        assert len(result) == 1
+        assert result[0].state == "working"
+        assert result[0].summary == "Using Read"
+
+    @patch("cc_monitor.analyzer.capture_pane")
+    def test_handles_empty_capture(self, mock_capture: MagicMock) -> None:
+        mock_capture.return_value = ""
+        session = AgentSession(
+            session_name="test",
+            window_index=0,
+            pane_index=0,
+            agent_type="claude",
+            state="idle",
+            summary="",
+            pane_pid=1234,
+            tmux_target="test:0.0",
+        )
+        result = analyze_sessions([session])
+        assert result[0].state == "idle"
+        assert result[0].summary == ""
+
+    @patch("cc_monitor.analyzer.capture_pane")
+    def test_multiple_sessions(self, mock_capture: MagicMock) -> None:
+        mock_capture.side_effect = [
+            "\n".join(CLAUDE_NEEDS_INPUT_PANE) + "\n",
+            "\n".join(OPENCODE_WORKING_PANE) + "\n",
+        ]
+        sessions = [
+            AgentSession(
+                session_name="s1",
+                window_index=0,
+                pane_index=0,
+                agent_type="claude",
+                state="idle",
+                summary="",
+                pane_pid=100,
+                tmux_target="s1:0.0",
+            ),
+            AgentSession(
+                session_name="s2",
+                window_index=1,
+                pane_index=0,
+                agent_type="opencode",
+                state="idle",
+                summary="",
+                pane_pid=200,
+                tmux_target="s2:1.0",
+            ),
+        ]
+        result = analyze_sessions(sessions)
+        assert result[0].state == "needs_input"
+        assert result[1].state == "working"
+        assert "Processing for" in result[1].summary

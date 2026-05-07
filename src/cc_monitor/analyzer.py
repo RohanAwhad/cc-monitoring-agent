@@ -2,6 +2,11 @@ from __future__ import annotations
 
 import re
 import subprocess
+from typing import Literal, cast
+
+from cc_monitor.models import AgentSession
+
+AgentState = Literal["working", "idle", "needs_input"]
 
 
 def capture_pane(tmux_target: str) -> str:
@@ -18,6 +23,10 @@ def capture_pane(tmux_target: str) -> str:
 _TOOL_CALL_RE = re.compile(r"⏺\s+\w+\(")
 _COMPLETION_RE = re.compile(r"✻\s+(Worked|Cooked) for")
 _OPENCODE_TIMER_RE = re.compile(r"·\s+\d+m\s+\d+s")
+_RECAP_RE = re.compile(r"recap:", re.IGNORECASE)
+_TOOL_NAME_RE = re.compile(r"⏺\s+(\w+)\(")
+_COMPLETION_DURATION_RE = re.compile(r"✻\s+(?:Worked|Cooked) for\s+(.+)")
+_DECORATION_RE = re.compile(r"^[\s─━═▀▁╹┃⏵░█\[\]]*$")
 
 
 def detect_claude_state(lines: list[str]) -> str:
@@ -65,3 +74,84 @@ def detect_state(agent_type: str, lines: list[str]) -> str:
     if agent_type == "opencode":
         return detect_opencode_state(lines)
     return "idle"
+
+
+def _last_meaningful_line(lines: list[str]) -> str:
+    for line in reversed(lines):
+        stripped = line.strip()
+        if stripped and not _DECORATION_RE.match(stripped):
+            return stripped
+    return ""
+
+
+def summarize_claude_activity(lines: list[str]) -> str:
+    if not lines:
+        return ""
+
+    text = "\n".join(lines)
+
+    for line in lines:
+        if _RECAP_RE.search(line):
+            idx = line.lower().index("recap:")
+            return line[idx + len("recap:") :].strip()
+
+    m = _TOOL_NAME_RE.search(text)
+    if m:
+        return f"Using {m.group(1)}"
+
+    for line in lines:
+        if "thinking" in line.lower():
+            return "Thinking..."
+
+    m = _COMPLETION_DURATION_RE.search(text)
+    if m:
+        return f"Completed {m.group(1).strip()} ago"
+
+    return _last_meaningful_line(lines)
+
+
+def summarize_opencode_activity(lines: list[str]) -> str:
+    if not lines:
+        return "Active session"
+
+    bottom = "\n".join(lines[-5:])
+    timer_match = _OPENCODE_TIMER_RE.search(bottom)
+
+    content_lines: list[str] = []
+    for line in lines:
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if _DECORATION_RE.match(stripped):
+            continue
+        if "Auto-Accept" in stripped or "ctrl+p" in stripped:
+            continue
+        content_lines.append(stripped)
+
+    if timer_match:
+        duration = timer_match.group(0).lstrip("· ").strip()
+        if content_lines:
+            return f"Processing for {duration} — {content_lines[-1]}"
+        return f"Processing for {duration}"
+
+    if content_lines:
+        return content_lines[-1]
+
+    return "Active session"
+
+
+def summarize_activity(agent_type: str, lines: list[str]) -> str:
+    if agent_type == "claude":
+        return summarize_claude_activity(lines)
+    if agent_type == "opencode":
+        return summarize_opencode_activity(lines)
+    return ""
+
+
+def analyze_sessions(sessions: list[AgentSession]) -> list[AgentSession]:
+    for session in sessions:
+        content = capture_pane(session.tmux_target)
+        lines = content.splitlines()
+        session.state = cast(AgentState, detect_state(session.agent_type, lines))
+        session.summary = summarize_activity(session.agent_type, lines)
+    return sessions
