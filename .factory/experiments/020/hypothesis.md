@@ -1,0 +1,1 @@
+Wire desktop alerts into watch loop for attention-required transitions

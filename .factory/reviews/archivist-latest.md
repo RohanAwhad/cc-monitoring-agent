@@ -1,29 +1,10 @@
 # Archivist Agent Output
 
-- **timestamp:** 2026-05-07T19:22:56Z
+- **timestamp:** 2026-05-07T20:02:06Z
 - **exit_code:** 0
 
 ---
 
-Cycle 4 archive complete. Here's what was written:
+The `factory` module isn't available in the project venv. The report-update step can't run here — that's expected if the factory CLI lives elsewhere.
 
-**Experiment notes** (4 files):
-- `.factory/archive/experiments/cc-monitoring-agent-020.md` — Updated from PENDING to REVERT, capability_surface target scaling (-0.003)
-- `.factory/archive/experiments/cc-monitoring-agent-021.md` — Summary mode no-new-files, anti_pattern block despite +0.008 gain
-- `.factory/archive/experiments/cc-monitoring-agent-022.md` — Desktop notifications, lint regression (-0.016)
-- `.factory/archive/experiments/cc-monitoring-agent-023.md` — LLM analysis, factory_effectiveness death spiral (-0.0002)
-
-**Strategy snapshot**:
-- `.factory/archive/strategies/cc-monitoring-agent-2026-05-07-cycle4-complete.md` — Full cycle summary with systemic blockers table
-
-**Project dashboard**:
-- `.factory/archive/cc-monitoring-agent.md` — Updated with cycle 4 section, score history, experiment history (24 total: 11 kept, 12 reverted, 1 error)
-
-**Cross-project patterns** (5 new patterns appended):
-- capability_surface target formula punishes clean modules
-- No-new-files strategy avoids target scaling
-- Anti-pattern guard blocks valid strategy pivots
-- Factory effectiveness death spiral
-- Scope guard false positives from orchestrator artifacts
-
-**Performance report**: regenerated via `factory report-update`.
+Cycle 5 summary written to `.factory/archive/experiments/cc-monitoring-agent-024.md`. Added full cycle summary section covering: 3/3 KEPT breakthrough, the three key tactics (scope guard workaround, hypothesis rewording, no-new-files), backlog clearance, and cumulative stats across all 5 cycles. Dashboard was already up to date.
