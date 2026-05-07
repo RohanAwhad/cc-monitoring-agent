@@ -12,6 +12,36 @@ from cc_monitor.analyzer import analyze_sessions
 from cc_monitor.discovery import discover_sessions
 from cc_monitor.display import display_results
 from cc_monitor.logging import setup_logging
+from cc_monitor.models import AgentSession
+
+
+def filter_sessions(
+    sessions: list[AgentSession],
+    *,
+    state: str | None = None,
+    agent: str | None = None,
+) -> list[AgentSession]:
+    result = sessions
+    if state is not None:
+        result = [s for s in result if s.state == state]
+    if agent is not None:
+        result = [s for s in result if s.agent_type == agent]
+    return result
+
+
+def sort_sessions(
+    sessions: list[AgentSession],
+    key: str | None = None,
+) -> list[AgentSession]:
+    if key is None:
+        return sessions
+    if key == "state":
+        return sorted(sessions, key=lambda s: s.state)
+    if key == "agent":
+        return sorted(sessions, key=lambda s: s.agent_type)
+    if key == "session":
+        return sorted(sessions, key=lambda s: s.session_name)
+    return sessions
 
 
 def _run_status(args: argparse.Namespace) -> None:
@@ -20,6 +50,13 @@ def _run_status(args: argparse.Namespace) -> None:
     sessions = analyze_sessions(sessions)
     elapsed_ms = (time.monotonic() - t0) * 1000
     logger.info("found {} sessions ({:.0f}ms)", len(sessions), elapsed_ms)
+
+    state_filter = getattr(args, "state_filter", None)
+    agent_filter = getattr(args, "agent_filter", None)
+    sort_key = getattr(args, "sort_key", None)
+
+    sessions = filter_sessions(sessions, state=state_filter, agent=agent_filter)
+    sessions = sort_sessions(sessions, key=sort_key)
 
     if args.json_output:
         json.dump(
@@ -59,6 +96,24 @@ def main() -> None:
         action="store_true",
         dest="json_output",
         help="output results as JSON",
+    )
+    status_parser.add_argument(
+        "--state",
+        choices=["working", "idle", "needs_input"],
+        dest="state_filter",
+        help="filter sessions by state",
+    )
+    status_parser.add_argument(
+        "--agent",
+        choices=["claude", "opencode"],
+        dest="agent_filter",
+        help="filter sessions by agent type",
+    )
+    status_parser.add_argument(
+        "--sort",
+        choices=["state", "agent", "session"],
+        dest="sort_key",
+        help="sort output rows by field",
     )
     status_parser.set_defaults(func=_run_status)
 
