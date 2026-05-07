@@ -13,6 +13,21 @@ from cc_monitor.analyzer import analyze_sessions
 from cc_monitor.discovery import discover_sessions
 from cc_monitor.display import display_results
 from cc_monitor.logging import setup_logging
+from cc_monitor.models import AgentSession
+
+
+def _filter_and_sort(
+    sessions: list[AgentSession],
+    state: str | None,
+    agent: str | None,
+    sort: str,
+) -> list[AgentSession]:
+    filtered = sessions
+    if state is not None:
+        filtered = [s for s in filtered if s.state == state]
+    if agent is not None:
+        filtered = [s for s in filtered if s.agent_type == agent]
+    return sorted(filtered, key=lambda s: getattr(s, sort))
 
 
 def _run_status(args: argparse.Namespace) -> None:
@@ -25,6 +40,12 @@ def _run_status(args: argparse.Namespace) -> None:
     sessions = analyze_sessions(sessions)
     elapsed_ms = (time.monotonic() - t0) * 1000
     log.info("found {} sessions ({:.0f}ms)", len(sessions), elapsed_ms)
+
+    state_filter = getattr(args, "state_filter", None)
+    agent_filter = getattr(args, "agent_filter", None)
+    sort_choice = getattr(args, "sort_key", "state")
+    sort_field = "agent_type" if sort_choice == "agent" else sort_choice
+    sessions = _filter_and_sort(sessions, state_filter, agent_filter, sort_field)
 
     if args.json_output:
         log.debug("outputting JSON results")
@@ -66,6 +87,27 @@ def main() -> None:
         action="store_true",
         dest="json_output",
         help="output results as JSON",
+    )
+    status_parser.add_argument(
+        "--state",
+        choices=["working", "idle", "needs_input"],
+        dest="state_filter",
+        default=None,
+        help="filter sessions by state",
+    )
+    status_parser.add_argument(
+        "--agent",
+        choices=["claude", "opencode"],
+        dest="agent_filter",
+        default=None,
+        help="filter sessions by agent type",
+    )
+    status_parser.add_argument(
+        "--sort",
+        choices=["state", "agent", "tmux_target"],
+        dest="sort_key",
+        default="state",
+        help="sort sessions by field (default: state)",
     )
     status_parser.set_defaults(func=_run_status)
 
