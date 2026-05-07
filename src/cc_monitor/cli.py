@@ -40,6 +40,7 @@ def _run_status(args: argparse.Namespace) -> None:
 
 
 def _run_watch(args: argparse.Namespace) -> None:
+    logger.debug("starting watch interval={}", args.interval)
     from cc_monitor.watch import watch_loop
 
     watch_loop(interval=args.interval)
@@ -81,6 +82,7 @@ def main() -> None:
     watch_parser.set_defaults(func=_run_watch)
 
     args = parser.parse_args()
+    logger.debug("parsed command={}", args.command)
 
     if args.command is None:
         _run_status(args)

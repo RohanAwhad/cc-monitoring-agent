@@ -13,6 +13,7 @@ AgentState = Literal["working", "idle", "needs_input"]
 
 
 def capture_pane(tmux_target: str) -> str:
+    logger.debug("capturing pane target={}", tmux_target)
     result = subprocess.run(
         ["tmux", "capture-pane", "-p", "-t", tmux_target],
         capture_output=True,
@@ -33,6 +34,7 @@ _DECORATION_RE = re.compile(r"^[\s─━═▀▁╹┃⏵░█\[\]]*$")
 
 
 def detect_claude_state(lines: list[str]) -> AgentState:
+    logger.debug("detecting claude state ({} lines)", len(lines))
     if not lines:
         return "idle"
 
@@ -60,6 +62,7 @@ def detect_claude_state(lines: list[str]) -> AgentState:
 
 
 def detect_opencode_state(lines: list[str]) -> AgentState:
+    logger.debug("detecting opencode state ({} lines)", len(lines))
     if not lines:
         return "idle"
 
@@ -74,6 +77,7 @@ def detect_opencode_state(lines: list[str]) -> AgentState:
 def detect_state(
     agent_type: Literal["claude", "opencode"], lines: list[str]
 ) -> AgentState:
+    logger.debug("detect_state agent={} lines={}", agent_type, len(lines))
     if agent_type == "claude":
         return detect_claude_state(lines)
     if agent_type == "opencode":
@@ -82,6 +86,7 @@ def detect_state(
 
 
 def _last_meaningful_line(lines: list[str]) -> str:
+    logger.debug("finding last meaningful line ({} lines)", len(lines))
     for line in reversed(lines):
         stripped = line.strip()
         if stripped and not _DECORATION_RE.match(stripped):
@@ -90,6 +95,7 @@ def _last_meaningful_line(lines: list[str]) -> str:
 
 
 def summarize_claude_activity(lines: list[str]) -> str:
+    logger.debug("summarizing claude activity ({} lines)", len(lines))
     if not lines:
         return ""
 
@@ -116,6 +122,10 @@ def summarize_claude_activity(lines: list[str]) -> str:
 
 
 def summarize_opencode_activity(lines: list[str]) -> str:
+    logger.debug(
+        "summarizing opencode activity ({} lines)",
+        len(lines),
+    )
     if not lines:
         return "Active session"
 
@@ -148,6 +158,11 @@ def summarize_opencode_activity(lines: list[str]) -> str:
 def summarize_activity(
     agent_type: Literal["claude", "opencode"], lines: list[str]
 ) -> str:
+    logger.debug(
+        "summarize_activity agent={} lines={}",
+        agent_type,
+        len(lines),
+    )
     if agent_type == "claude":
         return summarize_claude_activity(lines)
     if agent_type == "opencode":
