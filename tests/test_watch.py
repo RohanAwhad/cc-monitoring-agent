@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 from rich.table import Table
 
 from cc_monitor.models import AgentSession
-from cc_monitor.watch import _build_table, watch_loop
+from cc_monitor.watch import _build_table, _detect_transitions, _send_desktop_alert, watch_loop
 
 
 def _make_session(**kwargs: object) -> AgentSession:
@@ -114,3 +114,112 @@ class TestWatchLoop:
         except KeyboardInterrupt:
             pass
         mock_sleep.assert_called_once_with(5.0)
+
+    @patch("cc_monitor.watch._send_desktop_alert")
+    @patch("cc_monitor.watch.time.sleep", side_effect=KeyboardInterrupt)
+    @patch("cc_monitor.watch.analyze_sessions")
+    @patch("cc_monitor.watch.discover_sessions")
+    def test_notify_fires_on_needs_input(
+        self,
+        mock_discover: MagicMock,
+        mock_analyze: MagicMock,
+        mock_sleep: MagicMock,
+        mock_alert: MagicMock,
+    ) -> None:
+        session = _make_session(state="needs_input")
+        mock_discover.return_value = [session]
+        mock_analyze.return_value = [session]
+        try:
+            watch_loop(interval=1.0, notify=True)
+        except KeyboardInterrupt:
+            pass
+        mock_alert.assert_called_once_with(
+            "CCM: Input Required",
+            "Session main:0.0 needs your input",
+        )
+
+    @patch("cc_monitor.watch._send_desktop_alert")
+    @patch("cc_monitor.watch.time.sleep", side_effect=KeyboardInterrupt)
+    @patch("cc_monitor.watch.analyze_sessions")
+    @patch("cc_monitor.watch.discover_sessions")
+    def test_notify_not_fired_when_disabled(
+        self,
+        mock_discover: MagicMock,
+        mock_analyze: MagicMock,
+        mock_sleep: MagicMock,
+        mock_alert: MagicMock,
+    ) -> None:
+        session = _make_session(state="needs_input")
+        mock_discover.return_value = [session]
+        mock_analyze.return_value = [session]
+        try:
+            watch_loop(interval=1.0, notify=False)
+        except KeyboardInterrupt:
+            pass
+        mock_alert.assert_not_called()
+
+
+class TestDetectTransitions:
+    def test_no_previous_state(self) -> None:
+        current = {"main:0.0": "needs_input"}
+        result = _detect_transitions({}, current)
+        assert result == ["main:0.0"]
+
+    def test_transition_to_needs_input(self) -> None:
+        previous = {"main:0.0": "working"}
+        current = {"main:0.0": "needs_input"}
+        result = _detect_transitions(previous, current)
+        assert result == ["main:0.0"]
+
+    def test_already_needs_input_no_transition(self) -> None:
+        previous = {"main:0.0": "needs_input"}
+        current = {"main:0.0": "needs_input"}
+        result = _detect_transitions(previous, current)
+        assert result == []
+
+    def test_transition_away_from_needs_input(self) -> None:
+        previous = {"main:0.0": "needs_input"}
+        current = {"main:0.0": "working"}
+        result = _detect_transitions(previous, current)
+        assert result == []
+
+    def test_multiple_sessions_mixed(self) -> None:
+        previous = {"a:0.0": "working", "b:0.0": "needs_input"}
+        current = {"a:0.0": "needs_input", "b:0.0": "needs_input", "c:0.0": "needs_input"}
+        result = _detect_transitions(previous, current)
+        assert sorted(result) == ["a:0.0", "c:0.0"]
+
+    def test_new_session_working(self) -> None:
+        current = {"main:0.0": "working"}
+        result = _detect_transitions({}, current)
+        assert result == []
+
+
+class TestSendDesktopAlert:
+    @patch("cc_monitor.watch.subprocess.run")
+    @patch("cc_monitor.watch.shutil.which", return_value="/usr/local/bin/terminal-notifier")
+    def test_uses_terminal_notifier_when_available(
+        self,
+        mock_which: MagicMock,
+        mock_run: MagicMock,
+    ) -> None:
+        _send_desktop_alert("Title", "Body")
+        mock_which.assert_called_once_with("terminal-notifier")
+        mock_run.assert_called_once_with(
+            ["terminal-notifier", "-title", "Title", "-message", "Body"],
+            capture_output=True,
+        )
+
+    @patch("cc_monitor.watch.subprocess.run")
+    @patch("cc_monitor.watch.shutil.which", return_value=None)
+    def test_falls_back_to_osascript(
+        self,
+        mock_which: MagicMock,
+        mock_run: MagicMock,
+    ) -> None:
+        _send_desktop_alert("Title", "Body")
+        mock_which.assert_called_once_with("terminal-notifier")
+        mock_run.assert_called_once_with(
+            ["osascript", "-e", 'display notification "Body" with title "Title"'],
+            capture_output=True,
+        )
