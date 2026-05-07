@@ -6,6 +6,7 @@ import json
 import sys
 import time
 import uuid
+from collections import Counter
 
 from loguru import logger
 
@@ -39,6 +40,27 @@ def _run_status(args: argparse.Namespace) -> None:
         display_results(sessions)
 
 
+def _format_summary(
+    sessions: list[dataclasses.dataclass],  # type: ignore[type-arg]
+) -> str:
+    total = len(sessions)
+    if total == 0:
+        return "0 agents"
+    counts: Counter[str] = Counter(s.state for s in sessions)
+    parts = [
+        f"{counts[k]} {k}"
+        for k in ("working", "idle", "needs_input")
+        if counts[k]
+    ]
+    return f"{total} agents: {', '.join(parts)}"
+
+
+def _run_summary(args: argparse.Namespace) -> None:
+    sessions = discover_sessions()
+    sessions = analyze_sessions(sessions)
+    print(_format_summary(sessions), end="")
+
+
 def _run_watch(args: argparse.Namespace) -> None:
     from cc_monitor.watch import watch_loop
 
@@ -69,8 +91,15 @@ def main() -> None:
     )
     status_parser.set_defaults(func=_run_status)
 
+    summary_parser = subparsers.add_parser(
+        "summary",
+        help="one-line summary for tmux status bar",
+    )
+    summary_parser.set_defaults(func=_run_summary)
+
     watch_parser = subparsers.add_parser(
-        "watch", help="continuously monitor sessions with live refresh"
+        "watch",
+        help="continuously monitor sessions with live refresh",
     )
     watch_parser.add_argument(
         "--interval",
