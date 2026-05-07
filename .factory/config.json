@@ -2,7 +2,8 @@
   "goal": "A CLI tool that monitors all Claude Code and OpenCode sessions running in tmux, showing what each agent is doing, whether it needs user input, and the tmux coordinates to jump there.",
   "scope": [
     "src/**/*.py",
-    "tests/**/*.py"
+    "tests/**/*.py",
+    "pyproject.toml"
   ],
   "guards": [
     "Do not delete or overwrite existing tests",

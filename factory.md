@@ -10,11 +10,11 @@ A CLI tool that monitors all Claude Code and OpenCode sessions running in tmux, 
 
 - src/**/*.py
 - tests/**/*.py
+- pyproject.toml
 
 ### Read-only
 
 - README.md
-- pyproject.toml
 - eval/score.py
 
 ## Guards
