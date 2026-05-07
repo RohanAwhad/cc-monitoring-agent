@@ -5,6 +5,7 @@ import dataclasses
 import json
 import sys
 import time
+import uuid
 
 from loguru import logger
 
@@ -15,13 +16,18 @@ from cc_monitor.logging import setup_logging
 
 
 def _run_status(args: argparse.Namespace) -> None:
+    scan_id = uuid.uuid4().hex[:8]
+    log = logger.bind(scan_id=scan_id)
+
     t0 = time.monotonic()
     sessions = discover_sessions()
+    log.debug("discovered {} raw sessions", len(sessions))
     sessions = analyze_sessions(sessions)
     elapsed_ms = (time.monotonic() - t0) * 1000
-    logger.info("found {} sessions ({:.0f}ms)", len(sessions), elapsed_ms)
+    log.info("found {} sessions ({:.0f}ms)", len(sessions), elapsed_ms)
 
     if args.json_output:
+        log.debug("outputting JSON results")
         json.dump(
             {"sessions": [dataclasses.asdict(s) for s in sessions]},
             sys.stdout,
@@ -29,6 +35,7 @@ def _run_status(args: argparse.Namespace) -> None:
         )
         print()
     else:
+        log.debug("displaying table results")
         display_results(sessions)
 
 
