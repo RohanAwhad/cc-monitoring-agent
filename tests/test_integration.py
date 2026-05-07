@@ -271,3 +271,92 @@ class TestCLIIntegration:
             "tmux_target",
         }
         assert set(session.keys()) == expected_keys
+
+    @patch("cc_monitor.discovery.subprocess.run")
+    @patch("cc_monitor.analyzer.subprocess.run")
+    def test_filter_by_state(
+        self,
+        mock_analyzer_run: MagicMock,
+        mock_discovery_run: MagicMock,
+        monkeypatch: object,
+        capsys: object,
+    ) -> None:
+        pane_contents = {
+            "writer-cc:1.0": CLAUDE_WORKING_CONTENT,
+            "agents-py:2.1": OPENCODE_IDLE_CONTENT,
+            "review:3.0": CLAUDE_NEEDS_INPUT_CONTENT,
+        }
+        effect = _subprocess_side_effect(
+            MIXED_TMUX_OUTPUT, MIXED_PS_OUTPUT, pane_contents
+        )
+        mock_discovery_run.side_effect = effect
+        mock_analyzer_run.side_effect = effect
+
+        monkeypatch.setattr(  # type: ignore[attr-defined]
+            sys, "argv", ["ccm", "status", "--json", "--state", "working"]
+        )
+        main()
+
+        captured = capsys.readouterr()  # type: ignore[attr-defined]
+        data = json.loads(captured.out)
+        assert all(s["state"] == "working" for s in data["sessions"])
+
+    @patch("cc_monitor.discovery.subprocess.run")
+    @patch("cc_monitor.analyzer.subprocess.run")
+    def test_filter_by_agent(
+        self,
+        mock_analyzer_run: MagicMock,
+        mock_discovery_run: MagicMock,
+        monkeypatch: object,
+        capsys: object,
+    ) -> None:
+        pane_contents = {
+            "writer-cc:1.0": CLAUDE_WORKING_CONTENT,
+            "agents-py:2.1": OPENCODE_IDLE_CONTENT,
+            "review:3.0": CLAUDE_NEEDS_INPUT_CONTENT,
+        }
+        effect = _subprocess_side_effect(
+            MIXED_TMUX_OUTPUT, MIXED_PS_OUTPUT, pane_contents
+        )
+        mock_discovery_run.side_effect = effect
+        mock_analyzer_run.side_effect = effect
+
+        monkeypatch.setattr(  # type: ignore[attr-defined]
+            sys, "argv", ["ccm", "status", "--json", "--agent", "claude"]
+        )
+        main()
+
+        captured = capsys.readouterr()  # type: ignore[attr-defined]
+        data = json.loads(captured.out)
+        assert len(data["sessions"]) == 2
+        assert all(s["agent_type"] == "claude" for s in data["sessions"])
+
+    @patch("cc_monitor.discovery.subprocess.run")
+    @patch("cc_monitor.analyzer.subprocess.run")
+    def test_sort_by_tmux_target(
+        self,
+        mock_analyzer_run: MagicMock,
+        mock_discovery_run: MagicMock,
+        monkeypatch: object,
+        capsys: object,
+    ) -> None:
+        pane_contents = {
+            "writer-cc:1.0": CLAUDE_WORKING_CONTENT,
+            "agents-py:2.1": OPENCODE_IDLE_CONTENT,
+            "review:3.0": CLAUDE_NEEDS_INPUT_CONTENT,
+        }
+        effect = _subprocess_side_effect(
+            MIXED_TMUX_OUTPUT, MIXED_PS_OUTPUT, pane_contents
+        )
+        mock_discovery_run.side_effect = effect
+        mock_analyzer_run.side_effect = effect
+
+        monkeypatch.setattr(  # type: ignore[attr-defined]
+            sys, "argv", ["ccm", "status", "--json", "--sort", "tmux_target"]
+        )
+        main()
+
+        captured = capsys.readouterr()  # type: ignore[attr-defined]
+        data = json.loads(captured.out)
+        targets = [s["tmux_target"] for s in data["sessions"]]
+        assert targets == sorted(targets)
