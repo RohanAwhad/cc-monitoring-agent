@@ -14,6 +14,7 @@ from cc_monitor.analyzer import analyze_sessions
 from cc_monitor.discovery import discover_sessions
 from cc_monitor.display import display_results
 from cc_monitor.logging import setup_logging
+from cc_monitor.models import AgentSession
 
 
 def _run_status(args: argparse.Namespace) -> None:
@@ -41,7 +42,7 @@ def _run_status(args: argparse.Namespace) -> None:
 
 
 def _format_summary(
-    sessions: list[dataclasses.dataclass],  # type: ignore[type-arg]
+    sessions: list[AgentSession],
 ) -> str:
     total = len(sessions)
     if total == 0:
