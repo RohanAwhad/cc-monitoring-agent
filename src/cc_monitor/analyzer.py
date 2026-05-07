@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 import subprocess
 import time
-from typing import Literal, cast
+from typing import Literal
 
 from loguru import logger
 
@@ -32,7 +32,7 @@ _COMPLETION_DURATION_RE = re.compile(r"✻\s+(?:Worked|Cooked) for\s+(.+)")
 _DECORATION_RE = re.compile(r"^[\s─━═▀▁╹┃⏵░█\[\]]*$")
 
 
-def detect_claude_state(lines: list[str]) -> str:
+def detect_claude_state(lines: list[str]) -> AgentState:
     if not lines:
         return "idle"
 
@@ -59,7 +59,7 @@ def detect_claude_state(lines: list[str]) -> str:
     return "working"
 
 
-def detect_opencode_state(lines: list[str]) -> str:
+def detect_opencode_state(lines: list[str]) -> AgentState:
     if not lines:
         return "idle"
 
@@ -71,7 +71,9 @@ def detect_opencode_state(lines: list[str]) -> str:
     return "needs_input"
 
 
-def detect_state(agent_type: str, lines: list[str]) -> str:
+def detect_state(
+    agent_type: Literal["claude", "opencode"], lines: list[str]
+) -> AgentState:
     if agent_type == "claude":
         return detect_claude_state(lines)
     if agent_type == "opencode":
@@ -143,7 +145,9 @@ def summarize_opencode_activity(lines: list[str]) -> str:
     return "Active session"
 
 
-def summarize_activity(agent_type: str, lines: list[str]) -> str:
+def summarize_activity(
+    agent_type: Literal["claude", "opencode"], lines: list[str]
+) -> str:
     if agent_type == "claude":
         return summarize_claude_activity(lines)
     if agent_type == "opencode":
@@ -156,7 +160,7 @@ def analyze_sessions(sessions: list[AgentSession]) -> list[AgentSession]:
         t0 = time.monotonic()
         content = capture_pane(session.tmux_target)
         lines = content.splitlines()
-        session.state = cast(AgentState, detect_state(session.agent_type, lines))
+        session.state = detect_state(session.agent_type, lines)
         session.summary = summarize_activity(session.agent_type, lines)
         elapsed_ms = (time.monotonic() - t0) * 1000
         logger.debug(
