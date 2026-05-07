@@ -1,18 +1,16 @@
 from __future__ import annotations
 
-from unittest.mock import patch, MagicMock
-import subprocess
+from unittest.mock import MagicMock, patch
 
 from cc_monitor.discovery import (
     RawPane,
-    _parse_pane_lines,
     _check_child_processes,
+    _parse_pane_lines,
     classify_pane,
+    discover_sessions,
     list_all_panes,
     verify_claude_candidate,
-    discover_sessions,
 )
-
 
 TMUX_OUTPUT = """\
 writer-cc:1.0 2.1.119 57697
@@ -103,7 +101,9 @@ class TestListAllPanes:
 
     @patch("cc_monitor.discovery.subprocess.run")
     def test_tmux_not_running(self, mock_run: MagicMock) -> None:
-        mock_run.return_value = MagicMock(returncode=1, stdout="", stderr="no server running")
+        mock_run.return_value = MagicMock(
+            returncode=1, stdout="", stderr="no server running"
+        )
         assert list_all_panes() == []
 
 
@@ -158,7 +158,9 @@ class TestDiscoverSessions:
         assert discover_sessions() == []
 
     @patch("cc_monitor.discovery.subprocess.run")
-    def test_version_pane_without_claude_child_excluded(self, mock_run: MagicMock) -> None:
+    def test_version_pane_without_claude_child_excluded(
+        self, mock_run: MagicMock
+    ) -> None:
         tmux_out = "mysession:0.0 3.0.1 11111\n"
         ps_out = "  PID  PPID COMM\n11112 11111 node\n"
 
