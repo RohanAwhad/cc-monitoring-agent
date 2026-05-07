@@ -7,3 +7,10 @@
 - [x] archivist after build phase 5 — 2026-05-07T15:30:54Z
 - [x] archivist after build phase 6 — 2026-05-07T15:35:25Z
 - [x] archivist after build phase 7 — 2026-05-07T15:39:48Z
+- [x] archivist after research — 2026-05-07T15:55:56Z
+- [x] archivist after build H1 — 2026-05-07T16:07:08Z
+- [x] archivist after experiment 1 (keep) — 2026-05-07T16:13:11Z
+- [x] archivist after experiment 3 (keep) — 2026-05-07T16:21:04Z
+- [x] archivist after experiment 4 (keep) — 2026-05-07T16:28:51Z
+- [x] archivist after experiment 5 (keep) — 2026-05-07T16:35:12Z
+- [x] FINAL archivist — 2026-05-07T16:38:59Z

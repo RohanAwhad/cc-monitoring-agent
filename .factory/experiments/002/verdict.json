@@ -1,0 +1,15 @@
+{
+  "id": 2,
+  "timestamp": "2026-05-07 12:15:35.729565",
+  "hypothesis": "Configure pytest-cov and fix test/coverage detection",
+  "change_summary": "pyproject.toml config changes \u2014 reverted due to scope violation",
+  "issue_number": 3,
+  "pr_number": null,
+  "score_before": null,
+  "score_after": null,
+  "delta": null,
+  "verdict": "revert",
+  "cost_usd": null,
+  "notes": "ceo:revert reason=scope_violation pyproject.toml_is_read_only_in_factory.md builder_failed=false score_delta=0 hypothesis_type=code execution_artifacts=na e2e=na backlog_cleared=na",
+  "research_citations": []
+}

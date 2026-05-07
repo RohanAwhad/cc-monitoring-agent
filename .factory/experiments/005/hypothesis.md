@@ -1,0 +1,1 @@
+Expand observability: logging coverage to 80%+ functions and add request tracing with scan_id - growth: observability

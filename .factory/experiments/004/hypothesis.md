@@ -1,0 +1,1 @@
+Add watch mode with Rich Live (ccm watch subcommand) for continuous monitoring - growth: capability_surface

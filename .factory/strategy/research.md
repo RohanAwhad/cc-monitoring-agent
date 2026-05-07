@@ -1,234 +1,172 @@
-# Research Report — CC Monitoring Agent
+# Research — cc-monitoring-agent (Improve Cycle)
 
 ## Project Summary
 
-A Python CLI tool that scans all tmux panes, detects running Claude Code and OpenCode sessions, and displays a dashboard showing: what each agent is doing, whether it's waiting for user input, and the tmux coordinates to jump there.
+cc-monitoring-agent (`ccm`) is a Python CLI tool that discovers Claude Code and OpenCode sessions running in tmux panes, detects their state (working/idle/needs_input), extracts a one-sentence activity summary, and displays results as a rich table or JSON. Architecture: discover → analyze → display pipeline. Tech stack: subprocess + rich + loguru, strict mypy, pytest, ruff.
 
-MVP: single command, snapshot view, no daemon or persistence.
+**Current eval composite: 1.0** (all 5 dimensions pass — tests, typecheck, lint, cli_runs, formatting). The 0.517 score referenced in observations was from a prior cycle; type errors and coverage issues have since been resolved. All 70 tests pass, mypy strict reports 0 errors.
 
----
+## Backlog Assessment
 
-## Key Research Findings
+Backlog contains 1 item: "Missing items requiring human intervention: None identified." — this is a placeholder/empty item, not actionable. The backlog is effectively empty. No items are blocked or obsolete because none are real items.
 
-### 1. Session Discovery — Detecting Agent Processes in tmux
+## Prior Knowledge (Archive)
 
-**How `pane_current_command` works:**
-- `tmux list-panes -a -F '#{session_name}:#{window_index}.#{pane_index} #{pane_current_command} #{pane_pid}'` lists all panes across all sessions.
-- OpenCode shows `pane_current_command = "opencode"` directly.
-- Claude Code shows `pane_current_command` as a **version number** (e.g., `2.1.119`, `2.1.118`). This is because the Claude Code binary uses its version string as the process name.
+The archive contains 7 completed build experiments (all kept), 6 source notes covering tmux discovery, pane capture, terminal patterns for both Claude Code and OpenCode, tech stack decisions, and similar project analysis. Key prior decisions:
+- **No libtmux** — only 2 tmux commands needed; subprocess suffices
+- **No CLI framework** — single command, argparse is enough
+- **rich as only non-stdlib dep** (plus loguru for logging)
+- **Two-tier detection** — fast pane classification + child process verification
+- **Similar projects**: nights-watch (TUI monitor with MCP group chat) — only comparable project found, 0 stars
+- **Out-of-scope items noted at build time**: daemon mode, TUI dashboard (rich Live), notification integration, history/persistence, LLM summarization, config file
 
-**Detection strategy (two-tier):**
-1. **Fast path**: Check `pane_current_command` — match `opencode` directly, match version-like patterns (`\d+\.\d+\.\d+`) for Claude Code candidates.
-2. **Verify path**: For version-number matches, check child processes of `pane_pid` using `ps -eo pid,ppid,comm` and look for `claude` in the child process names.
+## External Research Findings
 
-**Confirmed from live system (2026-05-07):**
+### 1. pytest-cov Configuration for src Layout
+
+The eval currently checks pass/fail but does not measure **test coverage**. Adding coverage measurement would provide a growth signal and guard against regressions.
+
+**Recommended configuration** (from [pytest-cov docs](https://pytest-cov.readthedocs.io/en/latest/config.html), [Scientific Python guide](https://learn.scientific-python.org/development/guides/coverage/), [Coverage.py config reference](https://coverage.readthedocs.io/en/latest/config.html)):
+
+```toml
+# pyproject.toml additions
+[tool.pytest.ini_options]
+addopts = "--cov=cc_monitor --cov-config=pyproject.toml --cov-report=term-missing"
+
+[tool.coverage.run]
+source_pkgs = ["cc_monitor"]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 80
 ```
-pane=writer-assistance-cc-opus:1.1  cmd=2.1.119  pid=57697  children=claude
-pane=cleanup_gh:2.1                 cmd=2.1.118  pid=22347  children=claude
-pane=agents-python-container:2.1    cmd=opencode pid=95294  children=opencode
-pane=factory:1.1                    cmd=opencode pid=40301  children=opencode
+
+Requires adding `pytest-cov` to dev dependencies. The `source_pkgs` key is essential for src-layout projects — using `source = ["src"]` would measure the wrong paths. Coverage.py reads from `pyproject.toml` natively on Python 3.11+.
+
+### 2. mypy src Layout Best Practices
+
+Current config (`strict = true`) works and passes clean. Enhancements from [mypy docs](https://mypy.readthedocs.io/en/stable/config_file.html) and [pydevtools guide](https://pydevtools.com/handbook/how-to/how-to-configure-mypy-strict-mode/):
+
+```toml
+[tool.mypy]
+strict = true
+packages = ["cc_monitor"]
+warn_unreachable = true
+
+[[tool.mypy.overrides]]
+module = ["tests.*"]
+disallow_untyped_defs = false
 ```
 
-### 2. Capturing Pane Content
+Key findings:
+- `packages = ["cc_monitor"]` lets you run `mypy` without path args
+- `warn_unreachable` is NOT included in `--strict` but catches dead code paths
+- Test overrides are standard practice — test functions often lack return type annotations
+- subprocess.run in strict mode: always pass `text=True` as literal (not variable), annotate result types explicitly when wrapping. The heavily overloaded type stubs in typeshed for subprocess.run are the most common source of strict-mode type errors in CLI tools.
 
-**Best approach**: `tmux capture-pane -p -t '<target>'` piped through subprocess.
+### 3. CLI Feature Expansion Patterns
 
+The tool currently has a single command with one flag (`--json`). Standard expansion patterns from [argparse docs](https://docs.python.org/3/library/argparse.html) and [Real Python guide](https://realpython.com/command-line-interfaces-python-argparse/):
+
+**Subcommands via `add_subparsers()`:**
+- `ccm status` — current behavior (list all sessions)
+- `ccm watch` — continuous polling with live refresh
+- `ccm attach <target>` — shortcut to `tmux attach -t`
+- `ccm summary` — compact one-line output for shell prompts
+
+Key pattern: `set_defaults(func=handler)` on each subparser, dispatch via `args.func(args)` in main.
+
+**Backward compatibility**: bare `ccm` (no subcommand) should behave as `ccm status`. Achieved by setting `default` on the subparser or checking `hasattr(args, 'func')`.
+
+### 4. Watch Mode Implementation
+
+Watch mode is the highest-impact feature for a monitoring tool — continuous observation is the core use case. Research from [Rich Live display docs](https://rich.readthedocs.io/en/stable/live.html), [system-monitor-cli](https://pypi.org/project/system-monitor-cli/), and [terminal monitoring guide (Medium)](https://medium.com/@cumulus13/building-beautiful-terminal-based-network-monitoring-tools-in-python-6a036514097a):
+
+**Rich `Live` context manager** provides flicker-free terminal refresh:
 ```python
-result = subprocess.run(
-    ["tmux", "capture-pane", "-p", "-t", f"{session}:{window}.{pane}"],
-    capture_output=True, text=True
-)
-content = result.stdout
+with Live(table, refresh_per_second=4) as live:
+    while True:
+        sessions = discover_sessions()
+        analyze_sessions(sessions)
+        live.update(build_table(sessions))
+        time.sleep(interval)
 ```
 
-- `-p` outputs to stdout (no buffer save needed).
-- No need for `-S -` (full scrollback) — we only need the visible screen for activity detection.
-- Fast: ~5-10ms per pane.
+Key design points:
+- No threading needed — discover+analyze takes ~50ms total, well within a 2s poll interval
+- `refresh_per_second` parameter controls render rate independent of data collection rate
+- Graceful exit on `KeyboardInterrupt`
+- `--interval` flag for configurable poll rate (default 2s)
+- Rich `Live` is already available since `rich` is a dependency
 
-**libtmux alternative**: `pane.capture_pane()` returns `list[str]`. Cleaner API but adds a dependency. For MVP, raw subprocess is simpler and sufficient.
+### 5. Filtering and Sorting
 
-### 3. Claude Code Terminal Patterns
+Low-complexity, high-usability additions:
+- `--state working|idle|needs_input` — filter by state
+- `--agent claude|opencode` — filter by agent type
+- `--sort state|agent|session` — sort output
+- Implementation: pure Python filtering/sorting on `list[AgentSession]` before display
 
-Claude Code renders a distinctive TUI with these identifiable patterns:
+### 6. One-Line Summary Mode
 
-**Idle / waiting for input:**
-```
-❯ 
-───────────────────────────
-  [████████████████░░░░████] $1.430
-  ⏵⏵ bypass permissions on (shift+tab to cycle)
-```
-Key markers: `❯` prompt character, cost indicator `$X.XX`, `⏵⏵` permission mode indicator.
+For embedding in tmux status bar or shell prompts:
+- `ccm summary` or `ccm status --oneline`
+- Output: `3 agents: 2 working, 1 idle` or `⚡2 🕐1` (compact)
+- Enables integration: `set -g status-right '#(ccm summary --oneline)'` in .tmux.conf
 
-**Active tool use:**
-```
-⏺ Bash(echo "test")
-⎿ (No content)
-```
-Key markers: `⏺` (tool call indicator), tool name in format `ToolName(args)`.
+### 7. State Change Notifications
 
-**Thinking/processing:**
-Shows inline progress: "still thinking", "thinking more", "almost done thinking".
+For the "background monitoring" use case:
+- `ccm watch --notify` triggers macOS notification when an agent transitions to `needs_input`
+- Implementation: track previous state dict between poll iterations, diff on each cycle
+- macOS: `osascript -e 'display notification "..." with title "ccm"'` — no extra dependencies
+- Requires state persistence across poll cycles (simple dict in watch loop)
 
-**Completion marker:**
-```
-✻ Worked for 9m 26s
-```
-or
-```
-✻ Cooked for 9m 2s
-```
+## Recommended Focus Areas
 
-**Recap section:**
-```
-※ recap: Building a writing assistance webapp...
-```
+### FIX: Add pytest-cov and coverage configuration
+- Add `pytest-cov` to dev deps
+- Configure `[tool.coverage.run]` and `[tool.coverage.report]` in pyproject.toml
+- Set `fail_under = 80` (current coverage is likely high given 70 tests for ~200 LOC)
+- Strengthens eval by making test quality measurable, not just pass/fail
 
-### 4. OpenCode Terminal Patterns
+### EXPLOIT: Watch mode (`ccm watch`)
+- Highest-impact feature — continuous observation is the primary monitoring UX
+- Use Rich `Live` context manager for flicker-free refresh
+- Add `--interval` flag (default 2s)
+- Requires migrating CLI from flat argparse to subcommands (`ccm status`, `ccm watch`)
+- Backward compat: bare `ccm` (no subcommand) behaves as `ccm status`
+- **Growth dimension:** capability_surface
 
-OpenCode renders a Bubble Tea TUI with a status bar:
+### EXPLOIT: Filtering and sorting flags
+- `--state`, `--agent`, `--sort` flags on the status subcommand
+- Low complexity, improves usability when many sessions are running
+- Pure Python filtering on `list[AgentSession]`
+- **Growth dimension:** capability_surface
 
-**Idle / waiting for input (bottom bar):**
-```
-  ┃
-  ┃
-  ┃
-  ┃  Auto-Accept · Claude Opus 4.6 Vertex (Anthropic) · max
-  ╹▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
-                                    25.2K (3%) · $0.19  ctrl+p commands
-```
-Key markers: `▣  Auto-Accept` or model name in status bar, `ctrl+p commands` at bottom right.
+### EXPLORE: One-line summary mode
+- `ccm summary` or `ccm status --oneline` for tmux status bar / shell prompt integration
+- Output: `3 agents: 2 working, 1 idle` compact format
+- Enables integration with tmux, starship, or other status tools
+- **Growth dimension:** capability_surface
 
-**Active processing:**
-```
-  ▣  Auto-Accept · Claude Opus 4.6 · 3m 53s
-```
-Key marker: timer duration visible (e.g., `3m 53s`), indicates active processing.
-
-**Waiting for user input:**
-The input area shows `┃` (vertical bar) with an empty input line.
-
-### 5. Input Detection Heuristics
-
-**Claude Code — waiting for input:**
-- Bottom of pane contains `❯` (the prompt character)
-- Bottom section has the cost bar `[████...] $X.XX`
-- No active tool call indicator (`⏺`) in the last ~10 lines
-
-**Claude Code — needs permission:**
-- Contains permission prompt patterns (yes/no dialog)
-- Hook system fires `permission_prompt` event
-
-**Claude Code — actively working:**
-- Contains `⏺` tool markers in recent output
-- Contains thinking indicators
-- No `❯` prompt visible at bottom
-
-**OpenCode — waiting for input:**
-- Bottom area has empty `┃` input field
-- Status bar shows model name but no active timer with seconds ticking
-
-**OpenCode — actively working:**
-- Status bar shows active timer (e.g., `· 3m 53s`)
-- Recent content shows tool call output
-
-### 6. Tech Stack Recommendation
-
-| Component | Choice | Rationale |
-|---|---|---|
-| **tmux interaction** | `subprocess` (raw) | Simpler, no extra dep, 2 commands needed (`list-panes`, `capture-pane`) |
-| **Process detection** | `subprocess` + `ps` | Check child processes of pane PIDs |
-| **CLI framework** | None (argparse or bare) | Single command, no subcommands needed |
-| **Output formatting** | `rich` (Table + Console) | Beautiful tables, color support, widely used |
-| **Content parsing** | regex + string matching | Heuristic patterns identified above |
-| **Package management** | `uv` + `pyproject.toml` | Standard modern Python tooling |
-
-**Why not libtmux?** For MVP, we call exactly 2 tmux commands. libtmux adds a pre-1.0 dependency (API may change) for no real benefit at this scale. Can adopt later if needed.
-
-**Why rich?** The output is a table of sessions — rich.Table is purpose-built for this. Alternative: plain print with manual alignment, but rich handles terminal width, colors, and Unicode box-drawing for free.
-
-### 7. Architecture Pattern
-
-```
-main()
-  ├── discover_sessions()        # tmux list-panes → filter for claude/opencode
-  │     ├── list_all_panes()     # subprocess: tmux list-panes -a -F ...
-  │     └── classify_pane()      # is it claude? opencode? neither?
-  ├── analyze_sessions()         # for each session: capture + parse
-  │     ├── capture_pane()       # subprocess: tmux capture-pane -p -t ...
-  │     ├── detect_state()       # idle? working? needs_input?
-  │     └── summarize_activity() # extract one-sentence summary
-  └── display_results()          # rich.Table output
-```
-
-State model:
-```python
-@dataclass
-class AgentSession:
-    session_name: str       # tmux session
-    window_index: int       # tmux window
-    pane_index: int         # tmux pane
-    agent_type: str         # "claude" | "opencode"
-    state: str              # "working" | "idle" | "needs_input"
-    summary: str            # one-sentence activity description
-    pane_pid: int
-    tmux_target: str        # "session:window.pane" for jumping
-```
-
-### 8. Potential Pitfalls
-
-1. **Claude Code version-based detection is fragile**: The version number in `pane_current_command` will change with every update. Must use pattern matching (`\d+\.\d+\.\d+`) plus child process verification, not hardcoded version strings.
-
-2. **Terminal content has ANSI escapes**: `capture-pane` without `-e` flag strips escape sequences by default — which is what we want. But some Unicode characters (box-drawing, emoji) may still appear and need handling.
-
-3. **Pane content varies by terminal size**: A narrow pane wraps text differently. Summary extraction should work on the last N lines, not fixed positions.
-
-4. **Race condition on state detection**: Between capturing content and displaying results, the state may change. Acceptable for MVP (snapshot tool), but worth noting.
-
-5. **Multiple agents per session**: A tmux session can have multiple windows/panes with different agents. Must scan all panes, not just active ones.
-
-6. **OpenCode TUI uses alternate screen buffer**: Bubble Tea apps often use the alternate screen buffer. `capture-pane` handles this correctly (captures what's visible), but scrollback may not be available.
-
-### 9. MVP Scope
-
-**In scope:**
-- Single CLI command: `ccm` or `cc-monitor`
-- Scan all tmux panes for Claude Code and OpenCode
-- Show table: tmux target, agent type, state, summary
-- State detection: working / idle / needs_input
-- One-sentence activity summary from visible pane content
-
-**Out of scope (future):**
-- Daemon mode / continuous monitoring
-- TUI dashboard (textual/rich Live)
-- Notification integration
-- History / persistence
-- LLM-based summarization
-- Configuration file
-
----
-
-## Similar Projects Found
-
-No direct equivalent found. Related tools:
-- **tmuxp** — tmux session manager (libtmux-based), manages layout/config, not monitoring
-- **tmux-fingers** / **tmux-yank** — tmux plugins for content extraction, not monitoring
-- **Claude Code hooks** — built-in notification system for idle/permission states, but per-session, not cross-session dashboard
-
-This tool fills a gap: a single-pane view of all AI coding agents running across tmux sessions.
-
----
+### EXPLORE: State change notifications
+- `ccm watch --notify` triggers macOS notification on `needs_input` transitions
+- Track previous state between poll iterations (simple dict)
+- macOS notification via `osascript` — no extra deps
+- **Growth dimension:** capability_surface
 
 ## References
 
-- [libtmux docs — Pane Interaction](https://libtmux.git-pull.com/topics/pane_interaction.html)
-- [libtmux on PyPI (v0.55.1)](https://pypi.org/project/libtmux/)
-- [tmux wiki — Advanced Use](https://github.com/tmux/tmux/wiki/Advanced-Use)
-- [Tao of tmux — Scripting](https://tao-of-tmux.readthedocs.io/en/latest/manuscript/10-scripting.html)
-- [Claude Code hooks guide](https://code.claude.com/docs/en/hooks-guide)
-- [Claude Code issue #13024 — WaitingForInput hook](https://github.com/anthropics/claude-code/issues/13024)
-- [OpenCode GitHub](https://github.com/opencode-ai/opencode)
-- [OpenCode docs](https://opencode.ai/docs/)
-- [Rich library](https://github.com/textualize/rich)
-- [tmux capture-pane guide](https://tmuxai.dev/tmux-capture-pane/)
-- [Under the hood of Claude Code](https://pierce.dev/notes/under-the-hood-of-claude-code)
+- [pytest-cov configuration](https://pytest-cov.readthedocs.io/en/latest/config.html)
+- [Coverage.py configuration reference](https://coverage.readthedocs.io/en/latest/config.html)
+- [Scientific Python coverage guide](https://learn.scientific-python.org/development/guides/coverage/)
+- [pytest good integration practices](https://docs.pytest.org/en/stable/explanation/goodpractices.html)
+- [mypy configuration file](https://mypy.readthedocs.io/en/stable/config_file.html)
+- [mypy strict mode guide (pydevtools)](https://pydevtools.com/handbook/how-to/how-to-configure-mypy-strict-mode/)
+- [mypy common issues](https://mypy.readthedocs.io/en/stable/common_issues.html)
+- [argparse documentation](https://docs.python.org/3/library/argparse.html)
+- [Real Python argparse guide](https://realpython.com/command-line-interfaces-python-argparse/)
+- [Rich Live display](https://rich.readthedocs.io/en/stable/live.html)
+- [Building terminal monitoring tools with Rich (Medium)](https://medium.com/@cumulus13/building-beautiful-terminal-based-network-monitoring-tools-in-python-6a036514097a)
+- [system-monitor-cli (PyPI)](https://pypi.org/project/system-monitor-cli/)

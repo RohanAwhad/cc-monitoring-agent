@@ -1,5 +1,5 @@
-## CEO Review: Builder Agent (Phase 7)
+## CEO Review: Builder Agent (H3 — Watch mode)
 - **Verdict:** PROCEED
-- **Rationale:** Integration tests cover full pipeline with mocked subprocess. 70 total tests all passing. All 7 build phases complete.
-- **Issues found:** None
-- **Instructions for next step:** E2E verification — run ccm on live tmux sessions
+- **Rationale:** PR #7 adds watch mode exactly as specified. Clean subcommand refactor in cli.py, new watch.py with Rich Live, 8 new tests in test_watch.py. Backward compat preserved (bare ccm defaults to status). STATE_STYLES rename in display.py is minimal and justified for reuse. 81 tests pass, project eval 1.0.
+- **Issues found:** None. The factory.md/config.json diff is from the scope fix already on main, not from this experiment.
+- **Instructions for next step:** Post KEEP review, finalize.
