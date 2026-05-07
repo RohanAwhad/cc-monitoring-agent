@@ -1,0 +1,265 @@
+{
+  "project_name": "cc-monitoring-agent",
+  "generated_at": "2026-05-07 11:39:39.140544",
+  "total_experiments": 0,
+  "keep_count": 0,
+  "revert_count": 0,
+  "error_count": 0,
+  "keep_rate": 0.0,
+  "latest_score": null,
+  "agent_verdicts": [
+    {
+      "role": "builder",
+      "verdict": "PROCEED",
+      "rationale": "Integration tests cover full pipeline with mocked subprocess. 70 total tests all passing. All 7 build phases complete.",
+      "issues": [
+        "None",
+        "**Instructions for next step:** E2E verification \u2014 run ccm on live tmux sessions"
+      ],
+      "experiment_id": null
+    },
+    {
+      "role": "researcher",
+      "verdict": "PROCEED",
+      "rationale": "Research is thorough and grounded in live system observation. Key findings:",
+      "issues": [
+        "None significant. The eval profile was also created proactively, which is good.",
+        "**Instructions for next step:** Use the two-tier detection strategy (fast path + verify path). Prioritize Claude Code patterns since that's the primary tool. Keep rich as the only non-stdlib dependency beyond dev tools."
+      ],
+      "experiment_id": null
+    },
+    {
+      "role": "strategist",
+      "verdict": "PROCEED",
+      "rationale": "Plan is well-structured with 7 right-sized phases in dependency order. Phase 1 (scaffold) is correct first step. Growth dimensions covered: capability_surface (Phases 2-5), observability (Phase 6), factory_effectiveness (Phase 7). No unnecessary deferrals. Each phase is one PR's worth of work.",
+      "issues": [
+        "None. The plan closely follows the research recommendations.",
+        "**Instructions for next step:** Execute phases sequentially. Phase 1 must get all eval dimensions green before proceeding to feature work."
+      ],
+      "experiment_id": null
+    }
+  ],
+  "observations": [
+    {
+      "source": ".factory/archive/cc-monitoring-agent.md",
+      "content": "---\ntags:\n  - factory\n  - project\n  - cc-monitoring-agent\nsource: factory-archivist\n---\n\n# Factory: cc-monitoring-agent\n\n## Summary\n\nA Python CLI tool that scans all tmux panes, detects running Claude Code and OpenCode sessions, and displays a dashboard showing: what each agent is doing, whether it's waiting for user input, and the tmux coordinates to jump there. MVP: single command, snapshot view, no daemon or persistence.\n\n## Status\n\n- **State**: complete (all 7 build phases delivered)\n- **Cur",
+      "timestamp": "2026-05-07 11:39:39.135760",
+      "project": "cc-monitoring-agent",
+      "tags": [
+        "archive"
+      ]
+    },
+    {
+      "source": ".factory/archive/experiments/cc-monitoring-agent-001.md",
+      "content": "---\ntags:\n  - factory\n  - experiment\n  - cc-monitoring-agent\nproject: cc-monitoring-agent\nexperiment_id: 001\nverdict: KEEP\nscore_delta: \"+1.0\"\ndate: 2026-05-07\nsource: factory-archivist\n---\n\n# Experiment #001: Project scaffold + eval harness\n\n## Hypothesis\n\nAll 5 eval dimensions must pass before any feature work. Creating pyproject.toml, package structure, CLI stub, tests, and tooling configs gets the build green (composite score 0.0 \u2192 1.0).\n\n## Result\n\n**KEEP** \u2014 score changed from 0.0 to 1.0 (",
+      "timestamp": "2026-05-07 11:39:39.136040",
+      "project": "cc-monitoring-agent",
+      "tags": [
+        "archive"
+      ]
+    },
+    {
+      "source": ".factory/archive/experiments/cc-monitoring-agent-002.md",
+      "content": "---\ntags:\n  - factory\n  - experiment\n  - cc-monitoring-agent\nproject: cc-monitoring-agent\nexperiment_id: 002\nverdict: KEEP\nscore_delta: +0.0\ndate: 2026-05-07\nsource: factory-archivist\n---\n\n# Experiment #002: Data model + tmux pane discovery\n\n## Hypothesis\nDefine AgentSession data model and implement tmux pane discovery with two-tier detection (fast path + child process verification).\n\n## Result\n**KEEP** \u2014 score held at 1.0 (all eval dimensions passing, +0.0 delta)\n\n## What Changed\n- `src/cc_moni",
+      "timestamp": "2026-05-07 11:39:39.136256",
+      "project": "cc-monitoring-agent",
+      "tags": [
+        "archive"
+      ]
+    },
+    {
+      "source": ".factory/archive/experiments/cc-monitoring-agent-003.md",
+      "content": "---\ntags:\n  - factory\n  - experiment\n  - cc-monitoring-agent\nproject: cc-monitoring-agent\nexperiment_id: 003\nverdict: KEEP\nscore_delta: +0.0\ndate: 2026-05-07\nsource: factory-archivist\n---\n\n# Experiment #003: Pane content capture + agent state detection\n\n## Hypothesis\nImplement pane content capture via tmux capture-pane and regex-based state detection for both Claude Code and OpenCode agents.\n\n## Result\n**KEEP** \u2014 score held at 1.0 (all eval dimensions passing, +0.0 delta)\n\n## What Changed\n- `src",
+      "timestamp": "2026-05-07 11:39:39.136452",
+      "project": "cc-monitoring-agent",
+      "tags": [
+        "archive"
+      ]
+    },
+    {
+      "source": ".factory/archive/experiments/cc-monitoring-agent-004.md",
+      "content": "---\ntags:\n  - factory\n  - experiment\n  - cc-monitoring-agent\nproject: cc-monitoring-agent\nexperiment_id: 004\nverdict: KEEP\nscore_delta: +0.0\ndate: 2026-05-07\nsource: factory-archivist\n---\n\n# Experiment #004: Activity summarization\n\n## Hypothesis\nExtract one-sentence activity summaries from captured pane content for both Claude Code and OpenCode agents, using recap extraction, tool call detection, thinking state, and completion markers.\n\n## Result\n**KEEP** \u2014 score held at 1.0 (all eval dimensions",
+      "timestamp": "2026-05-07 11:39:39.136645",
+      "project": "cc-monitoring-agent",
+      "tags": [
+        "archive"
+      ]
+    },
+    {
+      "source": ".factory/archive/experiments/cc-monitoring-agent-005.md",
+      "content": "---\ntags:\n  - factory\n  - experiment\n  - cc-monitoring-agent\nproject: cc-monitoring-agent\nexperiment_id: 005\nverdict: KEEP\nscore_delta: +0.0\ndate: 2026-05-07\nsource: factory-archivist\n---\n\n# Experiment #005: Rich table display + CLI wiring\n\n## Hypothesis\nDisplay discovered agent sessions in a Rich-formatted table with color-coded state indicators, and wire the CLI entry point to run the full discover -> analyze -> display pipeline end-to-end.\n\n## Result\n**KEEP** \u2014 score held at 1.0 (all eval dim",
+      "timestamp": "2026-05-07 11:39:39.136865",
+      "project": "cc-monitoring-agent",
+      "tags": [
+        "archive"
+      ]
+    },
+    {
+      "source": ".factory/archive/experiments/cc-monitoring-agent-006.md",
+      "content": "---\ntags:\n  - factory\n  - experiment\n  - cc-monitoring-agent\nproject: cc-monitoring-agent\nexperiment_id: 006\nverdict: KEEP\nscore_delta: +0.0\ndate: 2026-05-07\nsource: factory-archivist\n---\n\n# Experiment #006: Structured logging with loguru\n\n## Hypothesis\nAdd structured logging via loguru with dual sinks (stderr for user-facing output, file for debug diagnostics) to support debugging and observability without disrupting CLI output.\n\n## Result\n**KEEP** \u2014 score held at 1.0 (all eval dimensions passi",
+      "timestamp": "2026-05-07 11:39:39.136991",
+      "project": "cc-monitoring-agent",
+      "tags": [
+        "archive"
+      ]
+    },
+    {
+      "source": ".factory/archive/experiments/cc-monitoring-agent-007.md",
+      "content": "---\ntags:\n  - factory\n  - experiment\n  - cc-monitoring-agent\nproject: cc-monitoring-agent\nexperiment_id: 7\nverdict: KEEP\nscore_delta: \"+0.0\"\ndate: 2026-05-07\nsource: factory-archivist\n---\n\n# Experiment #007: Integration tests and end-to-end validation\n\n## Hypothesis\nAdding integration tests and end-to-end validation will confirm all components work together correctly and provide a comprehensive test suite for the complete build.\n\n## Result\n**KEEP** \u2014 score maintained at 1.0 (delta +0.0)\n\n## What",
+      "timestamp": "2026-05-07 11:39:39.137115",
+      "project": "cc-monitoring-agent",
+      "tags": [
+        "archive"
+      ]
+    },
+    {
+      "source": ".factory/archive/patterns/patterns.md",
+      "content": "---\ntags:\n  - factory\n  - patterns\nsource: factory-archivist\n---\n\n# Cross-Project Patterns\n\n_No patterns recorded yet for this project._\n",
+      "timestamp": "2026-05-07 11:39:39.137333",
+      "project": "cc-monitoring-agent",
+      "tags": [
+        "archive"
+      ]
+    },
+    {
+      "source": ".factory/archive/sources/claude-code-terminal-patterns.md",
+      "content": "---\ntags:\n  - factory\n  - source\n  - cc-monitoring-agent\nsource: factory-archivist\ndate: 2026-05-07\n---\n\n# Claude Code Terminal Patterns\n\n## Idle / Waiting for Input\n\n```\n> \n---\n  [%%%%%%%%] $1.430\n  >> bypass permissions on (shift+tab to cycle)\n```\n\nKey markers: `>` prompt character, cost indicator `$X.XX`, `>>` permission mode indicator.\n\n## Active Tool Use\n\n```\n* Bash(echo \"test\")\n|- (No content)\n```\n\nKey markers: `*` (tool call indicator), tool name in format `ToolName(args)`.\n\n## Thinking /",
+      "timestamp": "2026-05-07 11:39:39.137547",
+      "project": "cc-monitoring-agent",
+      "tags": [
+        "archive"
+      ]
+    },
+    {
+      "source": ".factory/archive/sources/opencode-terminal-patterns.md",
+      "content": "---\ntags:\n  - factory\n  - source\n  - cc-monitoring-agent\nsource: factory-archivist\ndate: 2026-05-07\n---\n\n# OpenCode Terminal Patterns\n\n## Idle / Waiting for Input\n\nBottom bar pattern:\n```\n  |\n  |\n  |  Auto-Accept . Claude Opus 4.6 Vertex (Anthropic) . max\n  -=============================\n                                    25.2K (3%) . $0.19  ctrl+p commands\n```\n\nKey markers: `Auto-Accept` or model name in status bar, `ctrl+p commands` at bottom right.\n\n## Active Processing\n\n```\n  Auto-Accept . ",
+      "timestamp": "2026-05-07 11:39:39.138193",
+      "project": "cc-monitoring-agent",
+      "tags": [
+        "archive"
+      ]
+    },
+    {
+      "source": ".factory/archive/sources/pane-content-capture.md",
+      "content": "---\ntags:\n  - factory\n  - source\n  - cc-monitoring-agent\nsource: factory-archivist\ndate: 2026-05-07\n---\n\n# Pane Content Capture \u2014 tmux capture-pane\n\n## Key Findings\n\n- Best approach: `tmux capture-pane -p -t '<target>'` via subprocess.\n- `-p` outputs to stdout (no buffer save needed).\n- No need for `-S -` (full scrollback) \u2014 visible screen is sufficient for activity detection.\n- Performance: ~5-10ms per pane.\n- `capture-pane` without `-e` strips ANSI escape sequences by default \u2014 which is desire",
+      "timestamp": "2026-05-07 11:39:39.138367",
+      "project": "cc-monitoring-agent",
+      "tags": [
+        "archive"
+      ]
+    },
+    {
+      "source": ".factory/archive/sources/similar-projects.md",
+      "content": "---\ntags:\n  - factory\n  - source\n  - cc-monitoring-agent\nsource: factory-archivist\ndate: 2026-05-07\n---\n\n# Similar Projects Survey\n\n## Finding\n\nNo direct equivalent found. This tool fills a gap: a single-pane view of all AI coding agents running across tmux sessions.\n\n## Related Tools\n\n- **tmuxp** \u2014 tmux session manager (libtmux-based). Manages layout/config, not monitoring.\n- **tmux-fingers** / **tmux-yank** \u2014 tmux plugins for content extraction, not monitoring.\n- **Claude Code hooks** \u2014 built-",
+      "timestamp": "2026-05-07 11:39:39.138433",
+      "project": "cc-monitoring-agent",
+      "tags": [
+        "archive"
+      ]
+    },
+    {
+      "source": ".factory/archive/sources/tech-stack-recommendation.md",
+      "content": "---\ntags:\n  - factory\n  - source\n  - cc-monitoring-agent\nsource: factory-archivist\ndate: 2026-05-07\n---\n\n# Tech Stack Recommendation\n\n## Chosen Stack\n\n| Component | Choice | Rationale |\n|---|---|---|\n| tmux interaction | `subprocess` (raw) | Simpler, no extra dep, only 2 commands needed |\n| Process detection | `subprocess` + `ps` | Check child processes of pane PIDs |\n| CLI framework | None (argparse or bare) | Single command, no subcommands needed |\n| Output formatting | `rich` (Table + Console",
+      "timestamp": "2026-05-07 11:39:39.138495",
+      "project": "cc-monitoring-agent",
+      "tags": [
+        "archive"
+      ]
+    },
+    {
+      "source": ".factory/archive/sources/tmux-session-discovery.md",
+      "content": "---\ntags:\n  - factory\n  - source\n  - cc-monitoring-agent\nsource: factory-archivist\ndate: 2026-05-07\n---\n\n# tmux Session Discovery \u2014 Detecting Agent Processes\n\n## Key Findings\n\n- `tmux list-panes -a -F '#{session_name}:#{window_index}.#{pane_index} #{pane_current_command} #{pane_pid}'` lists all panes across all sessions.\n- OpenCode shows `pane_current_command = \"opencode\"` directly.\n- Claude Code shows `pane_current_command` as a **version number** (e.g., `2.1.119`, `2.1.118`) \u2014 the binary uses ",
+      "timestamp": "2026-05-07 11:39:39.138696",
+      "project": "cc-monitoring-agent",
+      "tags": [
+        "archive"
+      ]
+    },
+    {
+      "source": ".factory/archive/strategies/cc-monitoring-agent-2026-05-07-build-plan.md",
+      "content": "---\ntags:\n  - factory\n  - strategy\n  - cc-monitoring-agent\ndate: 2026-05-07\nsource: factory-archivist\n---\n\n# Strategy: cc-monitoring-agent \u2014 2026-05-07 (Build Plan Approved)\n\n## Phase: Build Plan \u2014 CEO APPROVED\n\n### Decision\nCEO reviewed the 7-phase build plan from strategist and issued PROCEED verdict. No issues found. Plan closely follows research recommendations.\n\n### Approved Build Phases (Sequential)\n\n1. **Phase 1: Project scaffold + eval harness** (FIX, high priority)\n   - pyproject.toml, ",
+      "timestamp": "2026-05-07 11:39:39.139240",
+      "project": "cc-monitoring-agent",
+      "tags": [
+        "archive"
+      ]
+    },
+    {
+      "source": ".factory/archive/strategies/cc-monitoring-agent-2026-05-07-phase1-complete.md",
+      "content": "---\ntags:\n  - factory\n  - strategy\n  - cc-monitoring-agent\ndate: 2026-05-07\nsource: factory-archivist\n---\n\n# Strategy: cc-monitoring-agent \u2014 2026-05-07 (Phase 1 Complete)\n\n## Current State\n\nPhase 1 (scaffold + eval harness) completed successfully. All 5 eval dimensions at 1.0. CEO verdict: PROCEED to Phase 2.\n\n## What Was Delivered\n\n- Clean pyproject.toml with rich dep + dev tooling (pytest, mypy, ruff)\n- Package structure under `src/cc_monitor/` with `__init__`, `__main__`, `py.typed`\n- CLI stu",
+      "timestamp": "2026-05-07 11:39:39.139433",
+      "project": "cc-monitoring-agent",
+      "tags": [
+        "archive"
+      ]
+    },
+    {
+      "source": ".factory/archive/strategies/cc-monitoring-agent-2026-05-07-phase2-complete.md",
+      "content": "---\ntags:\n  - factory\n  - strategy\n  - cc-monitoring-agent\ndate: 2026-05-07\nsource: factory-archivist\n---\n\n# Strategy: cc-monitoring-agent \u2014 2026-05-07 (Phase 2 Complete)\n\n## Phase 2 Outcome\nData model and tmux discovery pipeline delivered. CEO verdict: PROCEED.\n\n## Architecture Confirmed\n- **AgentSession dataclass** \u2014 minimal typed fields for session tracking\n- **Two-tier detection** \u2014 fast regex match for opencode, version regex + child process verify for Claude Code\n- **Pipeline pattern** \u2014 l",
+      "timestamp": "2026-05-07 11:39:39.139558",
+      "project": "cc-monitoring-agent",
+      "tags": [
+        "archive"
+      ]
+    },
+    {
+      "source": ".factory/archive/strategies/cc-monitoring-agent-2026-05-07-phase3-complete.md",
+      "content": "---\ntags:\n  - factory\n  - strategy\n  - cc-monitoring-agent\ndate: 2026-05-07\nsource: factory-archivist\n---\n\n# Strategy: cc-monitoring-agent \u2014 Phase 3 Complete (2026-05-07)\n\n## Phase 3 Delivered\nPane content capture and agent state detection implemented. The analyzer module completes the discover \u2192 analyze pipeline stages. Regex-based detection matches patterns identified during research phase.\n\n## Architecture Progress\nPipeline stages completed: **discover \u2192 analyze** (2 of 3)\n- Phase 1: Scaffold",
+      "timestamp": "2026-05-07 11:39:39.139679",
+      "project": "cc-monitoring-agent",
+      "tags": [
+        "archive"
+      ]
+    },
+    {
+      "source": ".factory/archive/strategies/cc-monitoring-agent-2026-05-07-phase4-complete.md",
+      "content": "---\ntags:\n  - factory\n  - strategy\n  - cc-monitoring-agent\ndate: 2026-05-07\nsource: factory-archivist\n---\n\n# Strategy: cc-monitoring-agent \u2014 Phase 4 Complete (2026-05-07)\n\n## Phase 4 Delivered\nActivity summarization implemented. The analyzer module now completes the full discover \u2192 analyze \u2192 summarize pipeline stages. Multi-strategy extraction (recap, tool calls, thinking state, completion markers) with fallback chains for both agent types.\n\n## Architecture Progress\nPipeline stages completed: **",
+      "timestamp": "2026-05-07 11:39:39.139805",
+      "project": "cc-monitoring-agent",
+      "tags": [
+        "archive"
+      ]
+    },
+    {
+      "source": ".factory/archive/strategies/cc-monitoring-agent-2026-05-07-phase5-complete.md",
+      "content": "---\ntags:\n  - factory\n  - strategy\n  - cc-monitoring-agent\ndate: 2026-05-07\nsource: factory-archivist\n---\n\n# Strategy: cc-monitoring-agent \u2014 Phase 5 Complete (2026-05-07)\n\n## Phase 5 Delivered\nRich table display and CLI entry point implemented. The full pipeline is now wired end-to-end: discover -> analyze -> display. The tool is usable as a CLI command.\n\n## Architecture Progress\nPipeline stages completed: **discover -> analyze -> summarize -> display** (all 4 functional stages)\n- Phase 1: Scaff",
+      "timestamp": "2026-05-07 11:39:39.139980",
+      "project": "cc-monitoring-agent",
+      "tags": [
+        "archive"
+      ]
+    },
+    {
+      "source": ".factory/archive/strategies/cc-monitoring-agent-2026-05-07-phase6-complete.md",
+      "content": "---\ntags:\n  - factory\n  - strategy\n  - cc-monitoring-agent\ndate: 2026-05-07\nsource: factory-archivist\n---\n\n# Strategy: cc-monitoring-agent \u2014 Phase 6 Complete (2026-05-07)\n\n## Phase 6 Delivered\nStructured logging with loguru integrated across all pipeline stages. Dual-sink configuration: stderr for user-visible output (controlled by LOGGING_LEVEL env var), file sink for debug diagnostics (always DEBUG level, written to logs/cc_monitor.log with 10 MB rotation).\n\n## Architecture Progress\nPipeline s",
+      "timestamp": "2026-05-07 11:39:39.140123",
+      "project": "cc-monitoring-agent",
+      "tags": [
+        "archive"
+      ]
+    },
+    {
+      "source": ".factory/archive/strategies/cc-monitoring-agent-2026-05-07-phase7-complete.md",
+      "content": "---\ntags:\n  - factory\n  - strategy\n  - cc-monitoring-agent\ndate: 2026-05-07\nsource: factory-archivist\n---\n\n# Strategy: cc-monitoring-agent \u2014 2026-05-07 (Phase 7 Complete \u2014 BUILD DONE)\n\n## Milestone\nFinal build phase complete. All 7 phases delivered successfully with perfect eval scores.\n\n## Build Stats\n- **Total Phases**: 7 of 7 complete\n- **Total Tests**: 70\n- **Final Score**: 1.0 (all eval dimensions at 1.0)\n- **Experiments**: 7 kept, 0 reverted\n- **Architecture**: discover \u2192 analyze \u2192 display",
+      "timestamp": "2026-05-07 11:39:39.140248",
+      "project": "cc-monitoring-agent",
+      "tags": [
+        "archive"
+      ]
+    },
+    {
+      "source": ".factory/archive/strategies/cc-monitoring-agent-2026-05-07.md",
+      "content": "---\ntags:\n  - factory\n  - strategy\n  - cc-monitoring-agent\ndate: 2026-05-07\nsource: factory-archivist\n---\n\n# Strategy: cc-monitoring-agent \u2014 2026-05-07\n\n## Phase: Post-Research \u2014 CEO PROCEED Verdict\n\n### Decision\nProceed to implementation with the researched approach. No pivots or alternative strategies needed.\n\n### Key Strategic Choices\n\n1. **Two-tier detection**: Fast path (pane_current_command regex) + verify path (child process check via `ps`). Handles Claude Code's fragile version-number-as",
+      "timestamp": "2026-05-07 11:39:39.140473",
+      "project": "cc-monitoring-agent",
+      "tags": [
+        "archive"
+      ]
+    }
+  ],
+  "verdict_patterns": {
+    "builder:PROCEED": 1,
+    "researcher:PROCEED": 1,
+    "strategist:PROCEED": 1
+  }
+}

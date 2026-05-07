@@ -1,0 +1,36 @@
+{
+  "goal": "A CLI tool that monitors all Claude Code and OpenCode sessions running in tmux, showing what each agent is doing, whether it needs user input, and the tmux coordinates to jump there.",
+  "scope": [
+    "src/**/*.py",
+    "tests/**/*.py"
+  ],
+  "guards": [
+    "Do not delete or overwrite existing tests",
+    "Do not modify files outside the declared scope",
+    "Do not introduce secrets or credentials into the repository"
+  ],
+  "eval_command": "python eval/score.py",
+  "eval_threshold": 0.8,
+  "constraints": [
+    "Prefer small, incremental changes over large rewrites",
+    "Each change should be accompanied by at least one test",
+    "Follow the existing code style and conventions"
+  ],
+  "hypothesis_budget": {
+    "min_growth": 2,
+    "max_new": 2
+  },
+  "target_branch": "main",
+  "smoke_test": "uv run ccm --json 2>/dev/null | python3 -c \"import json,sys; d=json.load(sys.stdin); assert 'sessions' in d; print(f'OK: {len(d[\\\"sessions\\\"])} sessions')\"",
+  "project_eval": [],
+  "eval_weights": {
+    "hygiene": 0.5,
+    "growth": 0.5,
+    "project": 0.0
+  },
+  "research_target": null,
+  "mutable_surfaces": [],
+  "fixed_surfaces": [],
+  "research_constraints": [],
+  "cost_budget": null
+}

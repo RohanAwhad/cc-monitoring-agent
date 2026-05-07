@@ -1,0 +1,13 @@
+## E2E Verification
+- **Status:** PASS
+- **Start command:** `uv run ccm`
+- **What was tested:** Ran ccm against live tmux sessions on the machine. Found 10 agent sessions (5 Claude Code, 5 OpenCode) across multiple tmux sessions. Verified:
+  - Session discovery works for both Claude Code and OpenCode
+  - State detection correctly identifies working, idle, and needs_input states
+  - Activity summarization extracts recap lines, tool call info, and completion durations
+  - Rich table renders with color-coded states
+  - JSON output (`--json`) produces valid JSON with correct structure
+  - Tmux targets are copy-pasteable session:window.pane strings
+- **Issues found:** None — tool works end-to-end on a real machine with real sessions
+- **User input needed:** None
+- **Smoke test command:** `uv run ccm --json 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin); assert 'sessions' in d; print(f'OK: {len(d[\"sessions\"])} sessions')"`
