@@ -3,6 +3,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 from cc_monitor.analyzer import (
+    analyze_pane_llm,
     analyze_sessions,
     capture_pane,
     detect_claude_state,
@@ -326,3 +327,55 @@ class TestAnalyzeSessions:
         assert result[0].state == "needs_input"
         assert result[1].state == "working"
         assert "Processing for" in result[1].summary
+
+
+class TestAnalyzePaneLlm:
+    def test_empty_text_returns_none(self) -> None:
+        assert analyze_pane_llm("") is None
+        assert analyze_pane_llm("   ") is None
+
+    @patch("cc_monitor.analyzer._HAS_ANTHROPIC", False)
+    def test_missing_anthropic_returns_none(self) -> None:
+        assert analyze_pane_llm("some pane text") is None
+
+    @patch.dict("os.environ", {}, clear=True)
+    @patch("cc_monitor.analyzer._HAS_ANTHROPIC", True)
+    def test_missing_credentials_returns_none(self) -> None:
+        assert analyze_pane_llm("some pane text") is None
+
+    @patch.dict(
+        "os.environ",
+        {"ANTHROPIC_VERTEX_PROJECT_ID": "test-project", "VERTEX_ACCESS_TOKEN": "tok"},
+    )
+    @patch("cc_monitor.analyzer._HAS_ANTHROPIC", True)
+    @patch("cc_monitor.analyzer.AnthropicVertex")
+    def test_successful_response(self, mock_client_cls: MagicMock) -> None:
+        mock_response = MagicMock()
+        mock_response.content = [MagicMock(text="The agent is refactoring auth code.")]
+        mock_client_cls.return_value.messages.create.return_value = mock_response
+
+        result = analyze_pane_llm("some pane text here")
+        assert result == "The agent is refactoring auth code."
+        mock_client_cls.assert_called_once_with(
+            project_id="test-project", region="global", access_token="tok",
+        )
+
+    @patch.dict(
+        "os.environ",
+        {
+            "ANTHROPIC_VERTEX_PROJECT_ID": "proj",
+            "VERTEX_LOCATION": "us-central1",
+            "VERTEX_ACCESS_TOKEN": "tok",
+        },
+    )
+    @patch("cc_monitor.analyzer._HAS_ANTHROPIC", True)
+    @patch("cc_monitor.analyzer.AnthropicVertex")
+    def test_custom_region(self, mock_client_cls: MagicMock) -> None:
+        mock_response = MagicMock()
+        mock_response.content = [MagicMock(text="Summary")]
+        mock_client_cls.return_value.messages.create.return_value = mock_response
+
+        analyze_pane_llm("text")
+        mock_client_cls.assert_called_once_with(
+            project_id="proj", region="us-central1", access_token="tok",
+        )

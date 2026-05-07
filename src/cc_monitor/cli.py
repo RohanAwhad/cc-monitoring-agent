@@ -9,7 +9,7 @@ import uuid
 
 from loguru import logger
 
-from cc_monitor.analyzer import analyze_sessions
+from cc_monitor.analyzer import analyze_pane_llm, analyze_sessions
 from cc_monitor.discovery import discover_sessions
 from cc_monitor.display import display_results
 from cc_monitor.logging import setup_logging
@@ -23,6 +23,16 @@ def _run_status(args: argparse.Namespace) -> None:
     sessions = discover_sessions()
     log.debug("discovered {} raw sessions", len(sessions))
     sessions = analyze_sessions(sessions)
+
+    if getattr(args, "use_llm", False):
+        from cc_monitor.analyzer import capture_pane
+
+        for session in sessions:
+            pane_text = capture_pane(session.tmux_target)
+            llm_summary = analyze_pane_llm(pane_text)
+            if llm_summary is not None:
+                session.summary = llm_summary
+
     elapsed_ms = (time.monotonic() - t0) * 1000
     log.info("found {} sessions ({:.0f}ms)", len(sessions), elapsed_ms)
 
@@ -66,6 +76,12 @@ def main() -> None:
         action="store_true",
         dest="json_output",
         help="output results as JSON",
+    )
+    status_parser.add_argument(
+        "--llm",
+        action="store_true",
+        dest="use_llm",
+        help="use LLM-powered analysis instead of heuristic",
     )
     status_parser.set_defaults(func=_run_status)
 

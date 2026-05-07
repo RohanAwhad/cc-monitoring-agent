@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import re
 import subprocess
 import time
@@ -8,6 +9,13 @@ from typing import Literal
 from loguru import logger
 
 from cc_monitor.models import AgentSession
+
+try:
+    from anthropic import AnthropicVertex
+
+    _HAS_ANTHROPIC = True
+except ImportError:
+    _HAS_ANTHROPIC = False
 
 AgentState = Literal["working", "idle", "needs_input"]
 
@@ -153,6 +161,44 @@ def summarize_activity(
     if agent_type == "opencode":
         return summarize_opencode_activity(lines)
     return ""
+
+
+def analyze_pane_llm(text: str) -> str | None:
+    if not text.strip():
+        logger.debug("analyze_pane_llm: empty pane text, skipping")
+        return None
+
+    if not _HAS_ANTHROPIC:
+        logger.debug("analyze_pane_llm: anthropic not installed")
+        return None
+
+    project_id = os.environ.get("ANTHROPIC_VERTEX_PROJECT_ID")
+    if not project_id:
+        logger.debug("analyze_pane_llm: missing ANTHROPIC_VERTEX_PROJECT_ID")
+        return None
+
+    region = os.environ.get("VERTEX_LOCATION", "global")
+    access_token = os.environ.get("VERTEX_ACCESS_TOKEN")
+    if not access_token:
+        logger.debug("analyze_pane_llm: missing VERTEX_ACCESS_TOKEN")
+        return None
+
+    client = AnthropicVertex(
+        project_id=project_id,
+        region=region,
+        access_token=access_token,
+    )
+    prompt = f"Summarize what this coding agent is doing in one sentence:\n{text}"
+    logger.debug("analyze_pane_llm: sending request")
+    response = client.messages.create(
+        model="claude-sonnet-4-5@20250929",
+        max_tokens=256,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    block = response.content[0]
+    result = block.text if hasattr(block, "text") else None
+    logger.debug("analyze_pane_llm: got response: {!r}", result)
+    return result
 
 
 def analyze_sessions(sessions: list[AgentSession]) -> list[AgentSession]:
