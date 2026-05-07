@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from cc_monitor.display import display_results
+from cc_monitor.display import display_results, format_summary_line
 from cc_monitor.models import AgentSession
 
 
@@ -78,3 +78,29 @@ class TestDisplayResults:
             _make_session(state="needs_input", summary="Needs input"),
         ]
         display_results(sessions)
+
+
+class TestFormatSummaryLine:
+    def test_zero_sessions(self) -> None:
+        result = format_summary_line([])
+        assert result == "0 agents:"
+
+    def test_single_session(self) -> None:
+        sessions = [_make_session(state="working")]
+        result = format_summary_line(sessions)
+        assert result == "1 agents:, 1 working"
+
+    def test_multiple_sessions_multiple_states(self) -> None:
+        sessions = [
+            _make_session(state="working", tmux_target="a:0.0"),
+            _make_session(state="idle", tmux_target="b:0.0"),
+            _make_session(state="working", tmux_target="c:0.0"),
+        ]
+        result = format_summary_line(sessions)
+        assert result == "3 agents:, 1 idle, 2 working"
+
+    def test_no_ansi_codes(self) -> None:
+        sessions = [_make_session(state="idle")]
+        result = format_summary_line(sessions)
+        assert "\x1b" not in result
+        assert "[" not in result

@@ -13,6 +13,17 @@ STATE_STYLES: dict[str, str] = {
 }
 
 
+def format_summary_line(sessions: list[AgentSession]) -> str:
+    total = len(sessions)
+    counts: dict[str, int] = {}
+    for s in sessions:
+        counts[s.state] = counts.get(s.state, 0) + 1
+    parts = [f"{total} agents:"]
+    for state in sorted(counts):
+        parts.append(f"{counts[state]} {state}")
+    return ", ".join(parts)
+
+
 def display_results(sessions: list[AgentSession]) -> None:
     logger.debug("display_results called with {} sessions", len(sessions))
     console = Console()
