@@ -27,6 +27,7 @@ where = ["src"]
 
 [tool.mypy]
 strict = true
+mypy_path = "src"
 
 [tool.ruff]
 target-version = "py311"
