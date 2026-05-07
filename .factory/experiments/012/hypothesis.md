@@ -1,0 +1,1 @@
+Add one-line summary mode (ccm summary) for tmux status bar integration
