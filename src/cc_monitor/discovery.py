@@ -5,6 +5,8 @@ import subprocess
 from dataclasses import dataclass
 from typing import Literal
 
+from loguru import logger
+
 from cc_monitor.models import AgentSession
 
 _VERSION_RE = re.compile(r"^\d+\.\d+\.\d+$")
@@ -33,8 +35,11 @@ def list_all_panes() -> list[RawPane]:
         text=True,
     )
     if result.returncode != 0:
+        logger.debug("tmux list-panes failed (rc={})", result.returncode)
         return []
-    return _parse_pane_lines(result.stdout)
+    panes = _parse_pane_lines(result.stdout)
+    logger.debug("found {} tmux panes", len(panes))
+    return panes
 
 
 def _parse_pane_lines(output: str) -> list[RawPane]:
@@ -97,6 +102,14 @@ def discover_sessions() -> list[AgentSession]:
     sessions: list[AgentSession] = []
     for pane in panes:
         classification = classify_pane(pane)
+        logger.debug(
+            "pane {}:{}.{} cmd={!r} -> {}",
+            pane.session_name,
+            pane.window_index,
+            pane.pane_index,
+            pane.current_command,
+            classification,
+        )
         if classification == "opencode":
             sessions.append(
                 AgentSession(
@@ -111,7 +124,9 @@ def discover_sessions() -> list[AgentSession]:
                 )
             )
         elif classification == "claude_candidate":
-            if verify_claude_candidate(pane.pane_pid):
+            verified = verify_claude_candidate(pane.pane_pid)
+            logger.debug("claude candidate pid={} verified={}", pane.pane_pid, verified)
+            if verified:
                 sessions.append(
                     AgentSession(
                         session_name=pane.session_name,

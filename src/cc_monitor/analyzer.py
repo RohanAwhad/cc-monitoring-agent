@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import re
 import subprocess
+import time
 from typing import Literal, cast
+
+from loguru import logger
 
 from cc_monitor.models import AgentSession
 
@@ -150,8 +153,17 @@ def summarize_activity(agent_type: str, lines: list[str]) -> str:
 
 def analyze_sessions(sessions: list[AgentSession]) -> list[AgentSession]:
     for session in sessions:
+        t0 = time.monotonic()
         content = capture_pane(session.tmux_target)
         lines = content.splitlines()
         session.state = cast(AgentState, detect_state(session.agent_type, lines))
         session.summary = summarize_activity(session.agent_type, lines)
+        elapsed_ms = (time.monotonic() - t0) * 1000
+        logger.debug(
+            "{} state={} summary={!r} ({:.0f}ms)",
+            session.tmux_target,
+            session.state,
+            session.summary,
+            elapsed_ms,
+        )
     return sessions
