@@ -16,6 +16,7 @@ class AgentSession:
     summary: str
     pane_pid: int
     tmux_target: str
+    cwd: str = ""
 
     def __post_init__(self) -> None:
         logger.debug(

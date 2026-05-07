@@ -1,5 +1,5 @@
 {
-  "total": 0.571191,
+  "total": 0.574599,
   "results": [
     {
       "name": "tests",
@@ -45,24 +45,24 @@
     },
     {
       "name": "capability_surface",
-      "score": 0.3125,
+      "score": 0.325,
       "weight": 0.14,
       "passed": false,
-      "details": "surface=50 (modules=16, public_fns=32, entry_points=2), target=160"
+      "details": "surface=52 (modules=16, public_fns=34, entry_points=2), target=160"
     },
     {
       "name": "experiment_diversity",
-      "score": 0.7429,
+      "score": 0.8857,
       "weight": 0.11,
       "passed": true,
-      "details": "4 distinct categories in last 8 experiments; dominant=bugfix (50%); last 3: ['feature', 'bugfix', 'agent_improvement']"
+      "details": "5 distinct categories in last 10 experiments; dominant=infrastructure (30%); last 3: ['observability', 'feature', 'infrastructure']"
     },
     {
       "name": "observability",
-      "score": 0.522,
+      "score": 0.539,
       "weight": 0.1,
       "passed": true,
-      "details": "observability_score=0.52, function_coverage=0.30, structured_logging=False"
+      "details": "observability_score=0.54, function_coverage=0.35, structured_logging=False"
     },
     {
       "name": "research_grounding",
@@ -73,12 +73,12 @@
     },
     {
       "name": "factory_effectiveness",
-      "score": 0.5146,
+      "score": 0.2896,
       "weight": 0.07,
-      "passed": true,
-      "details": "keep_rate=0.62 (5/8), delta_score=0.50, managed_projects=1"
+      "passed": false,
+      "details": "keep_rate=0.12 (1/8), delta_score=0.50, managed_projects=1"
     }
   ],
   "guard_violations": [],
-  "passed": false
+  "passed": true
 }

@@ -6,10 +6,11 @@ import json
 import sys
 import time
 import uuid
+from typing import Any
 
 from loguru import logger
 
-from cc_monitor.analyzer import analyze_sessions
+from cc_monitor.analyzer import analyze_sessions, estimate_session_cost
 from cc_monitor.discovery import discover_sessions
 from cc_monitor.display import display_results
 from cc_monitor.logging import setup_logging
@@ -26,17 +27,25 @@ def _run_status(args: argparse.Namespace) -> None:
     elapsed_ms = (time.monotonic() - t0) * 1000
     log.info("found {} sessions ({:.0f}ms)", len(sessions), elapsed_ms)
 
+    show_costs: bool = getattr(args, "costs", False)
+    cost_data: dict[str, dict[str, Any] | None] = {}
+    if show_costs:
+        for s in sessions:
+            cost_data[s.tmux_target] = estimate_session_cost(s)
+
     if args.json_output:
         log.debug("outputting JSON results")
-        json.dump(
-            {"sessions": [dataclasses.asdict(s) for s in sessions]},
-            sys.stdout,
-            indent=2,
-        )
+        session_dicts: list[dict[str, object]] = []
+        for s in sessions:
+            d: dict[str, object] = dataclasses.asdict(s)
+            if show_costs:
+                d["cost"] = cost_data.get(s.tmux_target)
+            session_dicts.append(d)
+        json.dump({"sessions": session_dicts}, sys.stdout, indent=2)
         print()
     else:
         log.debug("displaying table results")
-        display_results(sessions)
+        display_results(sessions, cost_data if show_costs else None)
 
 
 def _run_watch(args: argparse.Namespace) -> None:
@@ -58,6 +67,12 @@ def main() -> None:
         dest="json_output",
         help="output results as JSON",
     )
+    parser.add_argument(
+        "--costs",
+        action="store_true",
+        default=False,
+        help="show token usage and estimated cost per session",
+    )
     subparsers = parser.add_subparsers(dest="command")
 
     status_parser = subparsers.add_parser("status", help="show current session status")
@@ -66,6 +81,12 @@ def main() -> None:
         action="store_true",
         dest="json_output",
         help="output results as JSON",
+    )
+    status_parser.add_argument(
+        "--costs",
+        action="store_true",
+        default=False,
+        help="show token usage and estimated cost per session",
     )
     status_parser.set_defaults(func=_run_status)
 
