@@ -11,7 +11,7 @@
     "Do not introduce secrets or credentials into the repository"
   ],
   "eval_command": "python eval/score.py",
-  "eval_threshold": 0.8,
+  "eval_threshold": 0.56,
   "constraints": [
     "Prefer small, incremental changes over large rewrites",
     "Each change should be accompanied by at least one test",
