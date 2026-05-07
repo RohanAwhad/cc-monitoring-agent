@@ -1,16 +1,16 @@
 # Strategist Agent Output
 
-- **timestamp:** 2026-05-07T17:49:42Z
+- **timestamp:** 2026-05-07T20:24:20Z
 - **exit_code:** 0
 
 ---
 
-Strategy written to `.factory/strategy/current.md`. Summary:
+Strategy written to `.factory/strategy/current.md`.
 
-- **H1 (FIX, high):** Fix eval blocker (`mypy_path = "src"`) + merge 4 open PRs to main — prerequisite for everything else
-- **H2 (EXPLOIT, high):** Filtering/sorting flags — backlog item, growth: capability_surface
-- **H3 (EXPLOIT, high):** Summary mode — backlog item, growth: capability_surface
-- **H4 (EXPLOIT, medium):** Notifications — backlog item, growth: capability_surface
-- **H5 (EXPLOIT, medium):** Observability boost — new item, growth: observability
+**Summary:** 2 hypotheses for cycle 6 (both new exploration items since backlog is empty):
 
-Clears all 3 unique backlog items (H2-H4), uses 2 of 2 new item slots (H1 eval fix, H5 observability), hits 4 growth dimension tags (3x capability_surface, 1x observability). FEEC ordering: FIX first (H1), then EXPLOIT (H2-H5).
+1. **H1: `ccm attach` subcommand** (EXPLORE, capability_surface) — quick-jump to an agent's tmux pane. Every competitor has this. ~20 lines in `cli.py`, CEO's #1 priority. High priority.
+
+2. **H2: Token/cost estimation from conversation files** (EXPLORE, capability_surface) — read Claude Code's local JSONL logs to show token usage and estimated cost per session via `--costs` flag. Unique differentiator vs pane-scraping competitors. High priority.
+
+Both follow the validated no-new-files pattern, maintain eval 1.0, and target capability_surface growth. Anti-patterns section captures lessons from 12 prior reverts.

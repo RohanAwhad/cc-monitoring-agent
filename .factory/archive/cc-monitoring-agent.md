@@ -14,10 +14,11 @@ A Python CLI tool that scans all tmux panes, detects running Claude Code and Ope
 
 ## Status
 
-- **State**: improve (build complete, cycles 1-5 complete — backlog cleared)
+- **State**: improve (build complete, cycles 1-5 complete — backlog cleared, cycle 6 complete)
 - **Current Score**: 0.575 (factory composite) / 1.0 (project eval)
-- **Experiments Run**: 27 total (7 build + 5 cycle 1 + 3 cycle 2 + 5 cycle 3 + 4 cycle 4 + 3 cycle 5)
-- **Kept**: 14, **Reverted**: 12, **Error**: 1
+- **Experiments Run**: 29 total (7 build + 5 cycle 1 + 3 cycle 2 + 5 cycle 3 + 4 cycle 4 + 3 cycle 5 + 2 cycle 6)
+- **Kept**: 16, **Reverted**: 12, **Error**: 1
+- **Cycle 6 Status**: H1 (attach) KEPT, H2 (costs) KEPT — cycle complete
 - **Total Tests**: 107, **Coverage**: 97%
 - **Build Phases**: 7/7 complete
 - **Improve Cycle 1**: Complete — 4 hypotheses delivered (H1-H4), 5 experiments (4 kept, 1 reverted), keep rate 80%
@@ -58,6 +59,8 @@ A Python CLI tool that scans all tmux panes, detects running Claude Code and Ope
 - **Cycle 5 H1 (session narrowing)**: Factory 0.575 → KEEP (delta 0.0, eval 1.0)
 - **Cycle 5 H2 (compact output)**: Factory 0.575 → KEEP (delta 0.0, eval 1.0)
 - **Cycle 5 H3 (desktop alerts)**: Factory 0.575 → KEEP (delta 0.0, eval 1.0)
+- **Cycle 6 H1 (attach subcommand)**: Score 1.0 → KEEP (delta 0.0, eval 1.0)
+- **Cycle 6 H2 (token/cost estimation)**: Score 1.0 → KEEP (delta 0.0, eval 1.0)
 
 ## Improve Cycle 1 Summary (2026-05-07)
 
@@ -127,6 +130,19 @@ A Python CLI tool that scans all tmux panes, detects running Claude Code and Ope
 3. No-new-files: all code embedded in existing modules to avoid capability_surface scaling
 4. Backlog fully cleared — all 3 items delivered
 
+## Improve Cycle 6 Summary (2026-05-07)
+
+| Experiment | Hypothesis | Category | Verdict | Score Delta | Key Result |
+|---|---|---|---|---|---|
+| #027 (ID 21) | Attach subcommand for quick-jump | EXPLOIT | **KEEP** | 0.0 | attach subcommand, tmux switch-client, PR #40 |
+| #028 (ID 22) | Token/cost estimation | EXPLOIT | **KEEP** | 0.0 | --costs flag, estimate_session_cost(), 11 new tests, PR #42 |
+
+**Keep rate**: 100% (2/2) — continues cycle 5 breakthrough streak
+**Key tactics**:
+1. Continued no-new-files strategy — all code embedded in existing modules
+2. Scope guard workaround maintained from cycle 5
+3. Features drawn from competitive landscape research (attach, cost tracking)
+
 ## Build Plan (CEO-Approved 2026-05-07)
 
 | Phase | Description | Category | Priority | Status |
@@ -169,6 +185,12 @@ A Python CLI tool that scans all tmux panes, detects running Claude Code and Ope
 - [Eval Score Offset Strategy](sources/eval-offset-strategy-cycle4.md) — Bundle strategy: capability_surface + observability bundled per experiment
 - [macOS Notifications (Cycle 4 Update)](sources/macos-notifications-cycle4-update.md) — terminal-notifier preferred, Sequoia -sender/-activate conflict
 
+### Cycle 6 Research
+- [Competitive Landscape (Cycle 6)](sources/competitive-landscape-cycle6.md) — Explosive growth: 12+ competitors across hook-based, TUI, OTel categories
+- [Feature Opportunities (Cycle 6)](sources/cycle6-feature-opportunities.md) — 7 features ranked by value/effort: attach, approval detection, cost tracking, multi-agent
+- [Claude Code Native OTel (Cycle 6)](sources/claude-code-otel-native-cycle6.md) — 8 metrics, distributed tracing, TRACEPARENT propagation
+- [OpenCode Ecosystem (Cycle 6)](sources/opencode-ecosystem-cycle6.md) — 150k+ stars, OTel plugin, client/server architecture, agent system
+
 ## Strategy Snapshots
 
 - [Post-Research Strategy (2026-05-07)](strategies/cc-monitoring-agent-2026-05-07.md) — CEO PROCEED verdict, two-tier detection, minimal deps, linear pipeline
@@ -197,6 +219,8 @@ A Python CLI tool that scans all tmux panes, detects running Claude Code and Ope
 - [Cycle 5 Research (2026-05-07)](strategies/cc-monitoring-agent-2026-05-07-cycle5-research.md) — Research for cycle 5, backlog viability analysis
 - [Cycle 5 Strategy (2026-05-07)](strategies/cc-monitoring-agent-2026-05-07-cycle5-strategy.md) — CEO PROCEED, 3 hypotheses with rewording + no-new-files strategy
 - [Cycle 5 Complete (2026-05-07)](strategies/cc-monitoring-agent-2026-05-07-cycle5-complete.md) — **BREAKTHROUGH**: 3/3 KEPT, 100% keep rate, backlog cleared
+- [Cycle 6 Strategy (2026-05-07)](strategies/cc-monitoring-agent-2026-05-07-cycle6-strategy.md) — CEO PROCEED, 2 hypotheses: attach subcommand + token/cost estimation
+- [Cycle 6 Complete (2026-05-07)](strategies/cc-monitoring-agent-2026-05-07-cycle6-complete.md) — 2/2 KEPT, 100% keep rate, extends breakthrough streak to 5/5
 
 ## Experiment History
 
@@ -238,3 +262,7 @@ A Python CLI tool that scans all tmux panes, detects running Claude Code and Ope
 - [Experiment #024](experiments/cc-monitoring-agent-024.md) — Session narrowing/reordering (**KEEP**, 0.0, PR #34)
 - [Experiment #025](experiments/cc-monitoring-agent-025.md) — Compact output mode (**KEEP**, 0.0, PR #36)
 - [Experiment #026](experiments/cc-monitoring-agent-026.md) — Desktop alerts (**KEEP**, 0.0, PR #38)
+
+### Improve Cycle 6 (Experiments 027-028 — complete, 2/2 kept)
+- [Experiment #027](experiments/cc-monitoring-agent-027.md) — Attach subcommand for quick-jump navigation (**KEEP**, 0.0, PR #40)
+- [Experiment #028](experiments/cc-monitoring-agent-028.md) — Token/cost estimation from conversation files (**KEEP**, 0.0, PR #42)

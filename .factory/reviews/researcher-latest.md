@@ -1,14 +1,13 @@
 # Researcher Agent Output
 
-- **timestamp:** 2026-05-07T17:41:51Z
+- **timestamp:** 2026-05-07T20:19:48Z
 - **exit_code:** 0
 
 ---
 
-Research report written to `.factory/strategy/research.md`. Key findings:
+Research report written to `.factory/strategy/research.md`.
 
-- **Eval blocker fix found**: Adding `mypy_path = "src"` to `[tool.mypy]` in pyproject.toml should let system Python's mypy resolve src-layout imports — this 1-line config change could unblock all 3 reverted backlog items.
-- **Competitive landscape changed**: `claude-tmux` (v1.2.0) is now a full-featured competitor using plugin hooks + SQLite. ccm's differentiation is zero-config passive pane scraping that works with any agent.
-- **macOS Sequoia notification issue**: `osascript display notification` silently fails without terminal permissions. Recommendation: use `terminal-notifier` as primary, `osascript` as fallback.
-- **Textual not needed**: Rich `Live` + CLI-flag filtering is simpler and more composable than interactive TUI filtering. No new dependency.
-- **All 3 backlog items remain achievable** — the implementations were correct, just eval-blocked.
+**Key findings:**
+- The Claude Code monitoring space has exploded — 10+ new tools since cycle 3, spanning hook-based (ATM, agents-observe), TUI-based (TmuxCC supports 4 agents), and OTel-based (Grafana stacks, Datadog, Sentry) approaches
+- ccm's zero-config passive scraping remains unique and valuable, but competitors now offer interactive approval, cost tracking, and subagent visibility
+- Top recommended features: `ccm attach` (quick jump to pane), pending approval detection, token/cost estimation from local conversation files, and Gemini/Codex CLI support — all embeddable in existing modules

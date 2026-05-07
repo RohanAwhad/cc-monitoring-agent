@@ -1,140 +1,167 @@
-# Research Report — cc-monitoring-agent (Cycle 3)
+# Research Report — cc-monitoring-agent (Cycle 6)
 
 ## Project Summary
 
-cc-monitoring-agent (`ccm`) is a Python CLI tool that scans tmux panes, detects Claude Code and OpenCode sessions, and displays a status dashboard. Architecture: discover → analyze → display pipeline. Stack: argparse + subprocess + rich + loguru. Current state on main: flat CLI (no subcommands), snapshot-only view, `--json` flag. 81 tests, 98% coverage, project eval 1.0, factory composite 0.539.
+cc-monitoring-agent (`ccm`) is a Python CLI tool that scans tmux panes, detects Claude Code and OpenCode sessions, analyzes agent state (idle/working/needs_input), and displays a Rich table dashboard. Architecture: discover → analyze → display pipeline. Stack: argparse + subprocess + rich + loguru. Current state: 107 tests, 97% coverage, mypy strict, project eval 1.0, factory composite 0.575. Backlog is empty — all 3 cycle 5 items (filtering, summary, notifications) delivered and merged.
 
-**Key constraint**: 4 open PRs from cycle 1 (#2 mypy fix, #5 pytest-cov, #7 watch mode, #9 observability) exist on experiment branches but are not merged to main. All 3 cycle 2 backlog items (filtering, summary, notifications) were correctly implemented but reverted due to systemic factory eval failure (system Python can't resolve src-layout imports for mypy overlay).
+**Key differentiator**: Zero-config passive pane scraping — works with any terminal agent (Claude Code, OpenCode) without hooks, plugins, or daemon setup.
 
 ## Backlog Assessment
 
-| Item | Status | Achievable? | Notes |
-|---|---|---|---|
-| Filtering/sorting flags (`--state`, `--agent`, `--sort`) | Tried, reverted (eval blocker) | Yes, if eval blocker resolved | Code was correct, e2e passed, project eval 1.0 |
-| One-line summary mode (`ccm summary`) | Tried, reverted (eval blocker) | Yes, if eval blocker resolved | Same — functionally complete, eval-blocked |
-| State change notifications (`--notify`) | Tried, reverted (eval blocker) | Yes, if eval blocker resolved | Same — requires watch mode PR #7 merged first |
-
-All 3 items are **blocked by the same root cause**: factory eval runs mypy with system Python, which cannot resolve `src/cc_monitor/` imports. Any new Python code triggers false score regression.
+Backlog is empty. All 13 GitHub issues are closed/delivered. The project is functionally complete for its original scope. This research focuses on identifying high-value new features informed by the competitive landscape.
 
 ## Prior Knowledge (Archive)
 
-### Relevant Patterns
-1. **Factory eval systemic regression**: src-layout projects scored with system Python — root cause of all cycle 2 reverts. `mypy_path = "src"` in pyproject.toml is the project-level fix (new finding this cycle).
-2. **0% keep rate = infrastructure blocker**: Stop cycling and fix infrastructure first.
-3. **Subcommand refactoring preserves backward compat with default_subparser**: Already applied in PR #7.
-4. **Observability instrumentation needs no new tests at debug level**: Applied in cycle 1 H4.
-5. **Request-level tracing via context-bound IDs**: Applied in cycle 1 H4 (scan_id).
+### Competitive Landscape (from cycle 3)
 
-### Prior Source Notes (Still Valid)
-- Watch mode implementation pattern (Rich `Live`, ~50ms scan, no threading)
-- One-line summary format (`3 agents: 2 working, 1 idle`)
-- CLI subcommand structure (argparse `add_subparsers`)
-- macOS osascript notification pattern (now updated with Sequoia caveat — see below)
+- **claude-tmux**: SQLite + hooks, TUI dashboard, worktree isolation — heavier but richer state
+- **tmux-orche**: Inter-agent communication control plane
+- **pylumbergh**: Web dashboard for supervising Claude Code sessions
+- **claude-code-tools**: Programmatic tmux control
+
+ccm's differentiation was established as: lightweight, zero-config, passive monitoring, works with any agent.
+
+### Key Patterns Validated
+- No-new-files strategy for factory eval compatibility
+- `mypy_path = "src"` for src-layout projects
+- Rich Live for flicker-free watch mode (no Textual dependency needed)
+- argparse subparsers sufficient for <5 subcommands
 
 ## External Research Findings
 
-### 1. Competitive Landscape — Significant New Entrants
+### 1. Competitive Landscape — Explosive Growth (May 2026)
 
-Since the build phase, the competitive landscape has matured considerably:
+The Claude Code monitoring space has exploded since cycle 3. Multiple new tools have emerged:
 
-- **[claude-tmux](https://pypi.org/project/claude-tmux/)** (v1.2.0): Full-featured manager for multiple Claude Code instances in tmux. Uses SQLite for state tracking via Claude Code plugin hooks (not pane scraping). Features: worktree isolation per agent, TUI dashboard with vim keybindings, attention-based navigation (`next-attention`), search/filter, preview panes, squash-merge workflow. Requires Python 3.12+.
-- **[tmux-orche](https://pypi.org/project/tmux-orche/)**: Control plane for inter-agent communication across tmux sessions.
-- **[pylumbergh](https://pypi.org/project/pylumbergh/)**: Web dashboard for supervising multiple Claude Code sessions in tmux.
-- **[claude-code-tools](https://pypi.org/project/claude-code-tools/)**: Programmatic tmux control for Claude Code.
+**Hook-Based Monitoring (structured events, rich metadata)**
 
-**Key differentiation for ccm**: ccm uses passive pane scraping (no plugin hooks required, works with any agent including OpenCode), while claude-tmux uses active hooks (requires setup but gets richer state). ccm is lighter-weight and zero-config for monitoring.
+- **[ATM (Agent Tmux Manager)](https://github.com/damelLP/agent-tmux-manager)**: Rust TUI + daemon. Claude Code hooks → Unix socket → real-time dashboard. Captures model, context usage bars, cost tracking, live terminal capture. Agent control CLI (spawn, kill, interrupt, send text, auto-approve). Workspace layouts (solo/pair/squad/grid). Currently Claude Code-only.
 
-### 2. Rich Live vs Textual for TUI Features
+- **[claude-code-hooks-multi-agent-observability](https://github.com/disler/claude-code-hooks-multi-agent-observability)** (920 stars): Hook scripts intercept all 12 Claude Code lifecycle events → HTTP → Bun server → SQLite → WebSocket → Vue dashboard. Live pulse chart, agent swim lanes, MCP tool detection, security blocking. Full multi-agent orchestration with builder/validator agent roles.
 
-- **Rich `Live` + `Table`**: Sufficient for watch mode (flicker-free refresh, no threading needed). Already archived in prior research. Does NOT support interactive filtering/sorting natively.
-- **[Textual `DataTable`](https://textual.textualize.io/widgets/data_table/)**: Full interactive table with cursor modes (cell/row/column/none), programmatic `sort(*columns, key=...)`, vim-style navigation. No built-in filtering API — must be implemented via remove/re-add rows. Adds `textual` dependency.
-- **Recommendation for ccm**: Stay with Rich `Live` + pre-filter approach. Filtering via CLI flags (`--state`, `--agent`) is simpler and more composable (pipes, scripts) than interactive TUI filtering. Sorting via `--sort` flag with Python `sorted()` on `list[AgentSession]` is trivial. No new dependency needed.
+- **[agents-observe](https://github.com/simple10/agents-observe)**: Claude plugin (`claude plugin install agents-observe`). Hook events → API server (SQLite) → React dashboard. Subagent relationship tracking, filtering/search. Docker-based.
 
-### 3. macOS Notifications — osascript Reliability Issue on Sequoia
+- **[Claude Code Agent Monitor](https://github.com/hoangsonww/Claude-Code-Agent-Monitor)**: Node.js + React + SQLite. Activity feed with pause/resume, token usage analytics, activity heatmap, agent orchestration DAGs, Sankey diagrams.
 
-**Critical finding**: `osascript -e 'display notification ...'` silently fails on macOS Sequoia and later when the terminal app lacks notification permissions. The command exits 0 (no error) but the notification is dropped. This is a chicken-and-egg problem: terminal apps don't appear in System Settings → Notifications until they've successfully delivered a notification.
+**TUI-Based Monitoring (pane scraping, multi-agent)**
 
-**Workarounds** (ranked by reliability):
-1. **`terminal-notifier`** (`brew install terminal-notifier`): Registers as its own Notification Center app, sidesteps the permission issue entirely. Most reliable for automation.
-2. **One-time Script Editor permission grant**: Run `display notification` in Script Editor first to trigger permission prompt.
-3. **Fallback to `display dialog`**: Works without permissions but creates a modal dialog, not a banner.
+- **[TmuxCC](https://github.com/nyanko3141592/tmuxcc)**: Rust TUI. Supports Claude Code, OpenCode, Codex CLI, Gemini CLI. Interactive approval management (y/n from dashboard), batch approve/reject, subagent tracking, live pane preview. 500ms polling. Installed via `cargo install tmuxcc`.
 
-**Recommendation for ccm**: Use `terminal-notifier` as primary (check availability via `shutil.which`), fall back to `osascript` with a warning about permissions. Document the Sequoia issue in help text.
+- **[Agent Deck](https://github.com/asheshgoplani/agent-deck)**: Multi-agent TUI with Telegram bridge and Slack bridge for mobile/channel-based monitoring.
 
-Sources: [macOS Notification Issue](https://forum.latenightsw.com/t/trying-to-use-terminal-for-display-notification/5068), [Silent Fail Bug](https://github.com/gsd-build/gsd-2/issues/2632), [macOS Notification Best Practices](https://dev.to/jfpio/how-to-get-macos-notifications-for-long-running-processes-even-over-ssh-154d)
+- **[Workmux](https://github.com/raine/workmux)**: Git worktrees + tmux windows, with agent status overview across all sessions.
 
-### 4. CLI Subcommand Patterns
+**OTel-Based Monitoring (enterprise, metrics/cost)**
 
-Current state on main: flat argparse (no subcommands). PR #7 (watch mode) introduces subcommands but isn't merged.
+- **[claude-code-otel](https://github.com/ColeMurray/claude-code-otel)**: Full Grafana stack (OTel Collector → Prometheus + Loki → Grafana). Tracks session count, cost by model, token usage, LOC changes, commits, PRs. DAU/WAU/MAU. 30s refresh dashboards.
 
-**Best practices** (2025-2026):
-- argparse `add_subparsers()` with `set_defaults(func=handler)` is the zero-dependency pattern. Already used in PR #7.
-- Click (38.7% of CLI projects) and Typer offer cleaner decorator syntax but add dependencies.
-- **Recommendation**: Stay with argparse. ccm has 4 subcommands max — the complexity threshold for Click/Typer isn't reached.
+- **[Datadog AI Agents Console](https://www.datadoghq.com/blog/claude-code-monitoring/)**: Enterprise Claude Code monitoring — adoption tracking, performance trends, cost/ROI analysis.
 
-Sources: [CLI Tools Comparison](https://dasroot.net/posts/2025/12/building-cli-tools-python-click-typer-argparse/), [argparse Subparsers](https://runebook.dev/en/docs/python/library/argparse/argparse.ArgumentParser.add_subparsers)
+- **[Dynatrace Claude Code Monitoring](https://www.dynatrace.com/hub/detail/claude-code-agent-monitoring/)**: End-to-end visibility via OTel. Dashboards for total users, cost, tokens, sessions, active time.
 
-### 5. Factory Eval Blocker — mypy src-layout Fix
+- **[Sentry AI Monitoring](https://sentry.io/cookbook/monitor-claude-code-with-sentry/)**: Token usage, API costs, tool activity per session.
 
-The systemic eval blocker (system Python can't resolve src-layout imports) has a project-level workaround:
+**Key Shift**: Claude Code now has native OpenTelemetry support (metrics, events, distributed tracing in beta), with `TRACEPARENT` propagation to subprocesses. This makes hook-based and OTel-based approaches first-class, while pane scraping remains the lightweight alternative.
 
-```toml
-[tool.mypy]
-mypy_path = "src"
-```
+### 2. ccm's Position in the New Landscape
 
-This tells mypy where to find packages even when not running from a virtualenv. If the factory eval runs `python -m mypy src/` with system Python, setting `mypy_path = "src"` in pyproject.toml should resolve the import failures.
+**What ccm does uniquely well:**
+- Zero-config: no hooks, no plugins, no daemon, no Docker, no Rust toolchain
+- Agent-agnostic: works with OpenCode out of the box (most competitors are Claude-only)
+- Fast: ~50ms per scan, Python-only, pip-installable
+- Composable: `--json` output for scripting, `ccm summary` for status bars
 
-**Alternative**: `mypy_path = "$MYPY_CONFIG_FILE_DIR/src"` for config-relative resolution.
+**Where ccm is falling behind:**
+- No interactive approval management (TmuxCC, ATM offer this)
+- No cost/token tracking (OTel-based tools and ATM provide this)
+- No subagent/hierarchy visibility
+- No persistent history or analytics
+- No remote monitoring (Agent Deck has Telegram/Slack bridges)
 
-**This is the highest-priority fix**: unblocking the eval infrastructure makes all 3 backlog items viable again.
+### 3. High-Value Feature Opportunities
 
-Sources: [mypy config docs](https://mypy.readthedocs.io/en/stable/config_file.html), [mypy running imports](https://mypy.readthedocs.io/en/stable/running_mypy.html), [src-layout packaging](https://packaging.python.org/en/latest/discussions/src-layout-vs-flat-layout/)
+Based on competitive analysis and gaps, ranked by value-to-effort ratio:
 
-### 6. tmux Monitoring Best Practices
+#### A. `ccm attach <target>` — Quick Jump (LOW effort, HIGH daily value)
+Shortcut to switch to a specific agent's tmux pane. Already identified in cycle 3 research. Every competitor (TmuxCC, ATM, Workmux) offers this. Single function, minimal code.
 
-From the broader ecosystem:
-- **Refresh intervals**: 2-5 seconds is standard (agent-teams-tmux uses 5s, ccm's watch mode uses 2s default — both reasonable)
-- **libtmux** (v0.55.1, pre-1.0): Object-oriented tmux API, but adds a heavy dependency and unstable API. ccm's subprocess approach is simpler and sufficient for read-only monitoring.
-- **Event-driven updates**: Some tools use fswatch/inotifywait for file-change triggers. Overkill for ccm — periodic poll is simpler and the scan is fast (~50ms).
+#### B. Context/Cost Display (MEDIUM effort, HIGH value)
+Read Claude Code's JSONL conversation files (`~/.claude/projects/*/conversations/*.jsonl`) to extract token counts and estimate costs. No hooks needed — just file reading. Would close the biggest feature gap vs ATM and OTel-based tools. OpenCode equivalent: read session files if available.
 
-Sources: [libtmux docs](https://libtmux.git-pull.com/quickstart/), [agent-teams-tmux](https://lobehub.com/skills/smartassets-io-skills-agent-teams-tmux)
+#### C. Session History / Timeline (MEDIUM effort, MEDIUM value)
+Log state transitions to a local SQLite or JSONL file during `watch` mode. Enable `ccm history` to show recent sessions, durations, and state changes. Useful for "what happened while I was away?" scenarios. Simple append-only log.
+
+#### D. Approval Count / Pending Action Badge (LOW effort, MEDIUM value)
+Detect pending approval prompts (❯ with specific patterns) and surface a count in the status table. Doesn't do the approval (that requires sending keystrokes) but flags "3 agents need attention."
+
+#### E. Gemini CLI / Codex CLI Support (MEDIUM effort, MEDIUM value)
+TmuxCC already supports 4 agent types. Adding Gemini CLI and Codex CLI detection to ccm would strengthen the agent-agnostic differentiator. Requires discovering their terminal patterns (command names, status indicators).
+
+#### F. tmux Status Bar Widget (LOW effort, LOW-MEDIUM value)
+Already have `ccm summary`. Document and optimize the `set -g status-right '#(ccm summary)'` pattern. Ensure output has no ANSI codes, fits in status bar width, and refreshes efficiently.
+
+#### G. Remote Notifications — Slack/Telegram (HIGH effort, MEDIUM value)
+Agent Deck offers Telegram and Slack bridges. Could add `--notify-slack` or `--notify-telegram` for remote monitoring. Higher complexity due to auth/tokens, but high value for users managing agents on remote machines.
+
+### 4. Claude Code Native Monitoring Capabilities
+
+Claude Code now exports telemetry via OpenTelemetry:
+- 8 metrics including `claude_code.token.usage` (by type and model) and `claude_code.session.count`
+- Active time tracking (excludes idle time)
+- Distributed tracing with `TRACEPARENT` propagation to subprocesses
+- Privacy: prompt text redacted by default, configurable via env vars
+
+This is relevant because ccm could optionally consume OTel data for richer metrics without requiring hook setup — just reading the metrics endpoint.
+
+### 5. OpenCode Ecosystem Update
+
+OpenCode (150k+ GitHub stars) now has:
+- **opencode-plugin-otel**: OTel exporter mirroring Claude Code's telemetry signals
+- Client/server architecture (headless server + multiple frontends)
+- Agent system with plan/build modes
+- LSP integration for code intelligence
+- Non-interactive scripting mode
+
+This reinforces ccm's value proposition: OpenCode and Claude Code are converging on similar architectures, and ccm is one of the few tools that monitors both.
 
 ## Recommended Focus Areas
 
-### Priority 0: Unblock the Eval (FIX)
-Add `mypy_path = "src"` to `[tool.mypy]` in pyproject.toml. This is a 1-line config change that may unblock all new Python code from triggering false mypy regressions in the factory eval. Should be tested by running `python -m mypy src/` (not `uv run`) to verify system Python can resolve imports.
+### Tier 1: Quick Wins (embed in existing modules, no new files)
 
-### Priority 1: Merge Open PRs (FIX)
-PRs #2, #5, #7, #9 represent cycle 1 work that passed all checks. Merging them to main is prerequisite for cycle 2 backlog items (filtering, summary, notifications all depend on the subcommand architecture from PR #7).
+1. **`ccm attach <target>`** — Add to `cli.py`, ~15 lines. Direct `tmux select-window`/`select-pane`. Every competitor has this.
 
-### Priority 2: Re-apply Backlog Items (EXPLOIT)
-Once eval is unblocked and PRs merged, the 3 reverted features can be re-applied. The implementations were correct — they just need the infrastructure fix:
-- Filtering/sorting flags (`--state`, `--agent`, `--sort`)
-- One-line summary mode (`ccm summary`)
-- State change notifications (`--notify`) — with updated `terminal-notifier` fallback for macOS Sequoia
+2. **Pending approval detection** — Enhance `analyzer.py` state detection to flag pending approvals. Add an `approvals_pending: int` field or refine the `needs_input` state. ~20 lines.
 
-### Priority 3: New Ideas (EXPLORE)
-If cycle 3 has budget for new items beyond backlog:
-- **`ccm attach <target>`**: Shortcut to `tmux attach -t` for the selected session — simple quality-of-life improvement, minimal code.
-- **tmux status bar integration docs**: `set -g status-right '#(ccm summary --oneline)'` — document this pattern and ensure `ccm summary` output is compatible (no ANSI escape codes, newline handling).
+3. **tmux status bar docs/optimization** — Ensure `ccm summary` output is clean for status bar embedding. Add `--no-color` flag if not already present.
+
+### Tier 2: Differentiating Features (moderate effort, high value)
+
+4. **Token/cost estimation from conversation files** — Read Claude Code's local JSONL conversation logs, extract token usage. Add `--costs` flag to status output. Would be unique among pane-scraping tools (getting hook-level data without hooks).
+
+5. **Gemini CLI + Codex CLI detection** — Extend `discovery.py` and `analyzer.py` with new agent type patterns. Strengthen "works with any agent" positioning.
+
+### Tier 3: Larger Features (consider for future cycles)
+
+6. **Session history log** — Append state transitions to JSONL during watch mode. `ccm history` subcommand.
+
+7. **Remote notification bridges** — Slack webhook or Telegram bot integration for `--notify`.
 
 ## References
 
-- [claude-tmux (PyPI)](https://pypi.org/project/claude-tmux/)
-- [tmux-orche (PyPI)](https://pypi.org/project/tmux-orche/0.4.16/)
-- [pylumbergh (PyPI)](https://pypi.org/project/pylumbergh/0.1.0a143/)
-- [Textual DataTable](https://textual.textualize.io/widgets/data_table/)
-- [Rich Live Display docs](https://rich.readthedocs.io/en/latest/live.html)
-- [Rich Table API](https://rich.readthedocs.io/en/stable/reference/table.html)
-- [mypy config file docs](https://mypy.readthedocs.io/en/stable/config_file.html)
-- [mypy running imports](https://mypy.readthedocs.io/en/stable/running_mypy.html)
-- [Python src-layout vs flat-layout](https://packaging.python.org/en/latest/discussions/src-layout-vs-flat-layout/)
-- [CLI Tools: Click, Typer, argparse (2025)](https://dasroot.net/posts/2025/12/building-cli-tools-python-click-typer-argparse/)
-- [argparse subparsers docs](https://runebook.dev/en/docs/python/library/argparse/argparse.ArgumentParser.add_subparsers)
-- [macOS Notification permissions issue](https://forum.latenightsw.com/t/trying-to-use-terminal-for-display-notification/5068)
-- [macOS osascript silent fail bug](https://github.com/gsd-build/gsd-2/issues/2632)
-- [macOS Notification best practices](https://dev.to/jfpio/how-to-get-macos-notifications-for-long-running-processes-even-over-ssh-154d)
-- [libtmux docs](https://libtmux.git-pull.com/quickstart/)
-- [agent-teams-tmux](https://lobehub.com/skills/smartassets-io-skills-agent-teams-tmux)
-- [Claude Code Agent Teams docs](https://code.claude.com/docs/en/agent-teams)
+- [ATM - Agent Tmux Manager](https://github.com/damelLP/agent-tmux-manager)
+- [TmuxCC - TUI Dashboard](https://github.com/nyanko3141592/tmuxcc)
+- [claude-code-hooks-multi-agent-observability](https://github.com/disler/claude-code-hooks-multi-agent-observability)
+- [agents-observe](https://github.com/simple10/agents-observe)
+- [Claude Code Agent Monitor](https://github.com/hoangsonww/Claude-Code-Agent-Monitor)
+- [Agent Deck](https://github.com/asheshgoplani/agent-deck)
+- [Workmux](https://github.com/raine/workmux)
+- [claude-code-otel](https://github.com/ColeMurray/claude-code-otel)
+- [Claude Code Monitoring Docs](https://code.claude.com/docs/en/monitoring-usage)
+- [Datadog AI Agents Console](https://www.datadoghq.com/blog/claude-code-monitoring/)
+- [Dynatrace Claude Code Monitoring](https://www.dynatrace.com/hub/detail/claude-code-agent-monitoring/)
+- [Sentry Claude Code Monitoring](https://sentry.io/cookbook/monitor-claude-code-with-sentry/)
+- [Sesh - Smart tmux Session Manager](https://github.com/joshmedeski/sesh)
+- [tmux-ls](https://github.com/waystid/tmux-ls)
+- [TmuxAI](https://tmuxai.dev/)
+- [OpenCode](https://opencode.ai/)
+- [Agent Flow - Real-time Visualization](https://github.com/patoles/agent-flow)

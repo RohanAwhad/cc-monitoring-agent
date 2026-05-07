@@ -1,0 +1,15 @@
+{
+  "id": 21,
+  "timestamp": "2026-05-07 16:30:23.176954",
+  "hypothesis": "Add ccm attach subcommand for quick-jump navigation to agent tmux panes",
+  "change_summary": "Added _run_attach() and attach subparser in cli.py. 6 new tests in test_basic.py.",
+  "issue_number": 39,
+  "pr_number": 40,
+  "score_before": null,
+  "score_after": null,
+  "delta": null,
+  "verdict": "keep",
+  "cost_usd": null,
+  "notes": "ceo:keep score_delta=0.0 precheck=passed_manual agents_spawned=R,S,B pr_status=open_for_review hypothesis_type=code execution_artifacts=na e2e=pass backlog_cleared=na",
+  "research_citations": []
+}

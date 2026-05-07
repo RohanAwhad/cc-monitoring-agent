@@ -39,3 +39,8 @@
 - [x] archivist after experiment 18 (KEEP) — 2026-05-07T19:49:00Z
 - [x] archivist after experiment 19 (KEEP) — 2026-05-07T19:53:00Z
 - [x] FINAL archivist (cycle 5) — 2026-05-07T20:02:11Z
+- [x] archivist after research — 2026-05-07T20:22:22Z
+- [x] archivist after strategy — 2026-05-07T20:26:06Z
+- [x] archivist after experiment 21 (keep) — 2026-05-07T20:31:47Z
+- [x] archivist after experiment 22 (keep) — 2026-05-07T20:40:59Z
+- [x] FINAL archivist (cycle 6) — 2026-05-07T20:43:12Z
