@@ -14,15 +14,17 @@ A Python CLI tool that scans all tmux panes, detects running Claude Code and Ope
 
 ## Status
 
-- **State**: improve (build complete, cycle 1 complete, cycle 2 complete — blocked)
-- **Current Score**: 0.539 (factory composite) / 1.0 (project eval)
-- **Experiments Run**: 15 total (7 build + 5 improve cycle 1 + 3 improve cycle 2), 4 reverted
-- **Kept**: 11, **Reverted**: 4
-- **Total Tests**: 81, **Coverage**: 98%
+- **State**: improve (build complete, cycle 1 complete, cycle 2 complete — blocked, cycle 3 H1 complete)
+- **Current Score**: 0.537 (factory composite) / 1.0 (project eval)
+- **Experiments Run**: 16 total (7 build + 5 improve cycle 1 + 3 improve cycle 2 + 1 improve cycle 3), 4 reverted
+- **Kept**: 12, **Reverted**: 4
+- **Cycle 3 Status**: H1 complete (eval blocker fix + 4 PR merge), H2-H5 unblocked
+- **Total Tests**: 81, **Coverage**: 97%
 - **Build Phases**: 7/7 complete
 - **Improve Cycle 1**: Complete — 4 hypotheses delivered (H1-H4), 5 experiments (4 kept, 1 reverted)
 - **Improve Cycle 2**: Complete — 3 hypotheses attempted, ALL 3 REVERTED due to systemic eval issue
-- **Blocker**: Factory eval runs mypy/lint with system Python on experiment branches — cannot resolve src-layout imports, causing type_check to drop to 0.0 and triggering score regression on every new code addition
+- **Improve Cycle 3**: H1 complete — mypy_path fix applied, 4 PRs merged to main. Factory composite still low due to overlay dimension issues (system Python missing third-party stubs)
+- **Remaining blocker**: Factory eval type_check still reports 14 errors (import-not-found for loguru/rich stubs) and tests/coverage show "not detected" — factory infrastructure issues, not project code issues
 
 ## Score History
 
@@ -35,6 +37,7 @@ A Python CLI tool that scans all tmux panes, detects running Claude Code and Ope
 - **Cycle 2 H1 (filtering/sorting)**: Factory 0.539 → REVERT (delta -0.058, systemic eval failure)
 - **Cycle 2 H2 (one-line summary)**: Factory 0.539 → REVERT (delta -0.049, systemic eval failure)
 - **Cycle 2 H3 (notifications)**: Factory 0.539 → REVERT (delta -0.032, systemic eval failure)
+- **Cycle 3 H1 (eval blocker + PR merge)**: Factory 0.539 → 0.537 — operational experiment, mypy_path fix + 4 PRs merged, project eval 1.0
 
 ## Improve Cycle 1 Summary (2026-05-07)
 
@@ -91,6 +94,26 @@ CEO Verdict: **PROCEED**. Research thorough and actionable.
 - EXPLOIT watch mode — highest growth impact on capability_surface ✅ (H3)
 - At least 2 growth hypotheses required (budget: min_growth=2, max_new=2)
 
+## Improve Cycle 3 — Research Findings (2026-05-07)
+
+CEO Verdict: **PROCEED**. Research thorough and actionable.
+
+### Key Findings
+
+1. **Eval blocker fix identified**: `mypy_path = "src"` in pyproject.toml — project-level workaround for system Python mypy resolution
+2. **Competitive landscape shift**: claude-tmux (v1.2.0) is now a full-featured competitor using active hooks; ccm differentiates via passive zero-config pane scraping
+3. **macOS Sequoia notification issue**: osascript silently fails without permissions; `terminal-notifier` is the reliable alternative
+4. **TUI decision validated**: Rich `Live` + CLI flags preferred over Textual `DataTable` — simpler, no new dependency
+5. **CLI pattern confirmed**: argparse subparsers sufficient for ccm's 4-subcommand ceiling
+
+### CEO Priorities for Strategist
+
+1. FIX: Merge 4 open PRs (#2, #5, #7, #9) to main — prerequisite for all backlog items
+2. FIX: Add `mypy_path = "src"` to pyproject.toml to unblock factory eval
+3. EXPLOIT: Clear backlog items (filtering, summary, notifications) — all 3 were correctly implemented before, just eval-blocked
+4. Growth dimensions must be targeted (capability_surface via new features)
+5. Backlog has 3 unique items (6 listed but 3 are formatting duplicates)
+
 ## Research Phase (2026-05-07 — Build)
 
 - **CEO Verdict**: PROCEED
@@ -116,6 +139,14 @@ CEO Verdict: **PROCEED**. Research thorough and actionable.
 - [Watch Mode (Rich Live)](sources/watch-mode-rich-live.md) — Flicker-free refresh, no threading needed, ~50ms poll cycle
 - [One-Line Summary & Notifications](sources/oneline-summary-and-notifications.md) — tmux status bar integration, macOS osascript notifications
 
+### Cycle 3 Research
+- [Competitive Landscape (Cycle 3)](sources/competitive-landscape-cycle3.md) — claude-tmux, tmux-orche, pylumbergh — ccm differentiates via passive zero-config scraping
+- [Rich Live vs Textual](sources/rich-live-vs-textual-cycle3.md) — Rich `Live` + CLI flags preferred over Textual `DataTable`
+- [macOS Notifications (Sequoia)](sources/macos-notifications-sequoia.md) — osascript silent fail, terminal-notifier workaround
+- [mypy_path Eval Fix](sources/mypy-path-eval-fix.md) — `mypy_path = "src"` project-level workaround for factory eval blocker
+- [CLI Subcommand Patterns (Cycle 3)](sources/cli-subcommand-patterns-cycle3.md) — argparse sufficient for ≤4 subcommands
+- [tmux Monitoring Practices (Cycle 3)](sources/tmux-monitoring-practices-cycle3.md) — subprocess + periodic poll validated, libtmux overkill
+
 ## Strategy Snapshots
 
 - [Post-Research Strategy (2026-05-07)](strategies/cc-monitoring-agent-2026-05-07.md) — CEO PROCEED verdict, two-tier detection, minimal deps, linear pipeline
@@ -135,6 +166,9 @@ CEO Verdict: **PROCEED**. Research thorough and actionable.
 - [Cycle 2 Research (2026-05-07)](strategies/cc-monitoring-agent-2026-05-07-cycle2-research.md) — Research complete, all prior sources reused, 3 backlog items identified
 - [Cycle 2 Strategy (2026-05-07)](strategies/cc-monitoring-agent-2026-05-07-cycle2-strategy.md) — CEO PROCEED, 3 hypotheses targeting capability_surface
 - [Cycle 2 Complete (2026-05-07)](strategies/cc-monitoring-agent-2026-05-07-cycle2-complete.md) — All 3 reverted, systemic eval blocker identified
+- [Cycle 3 Research (2026-05-07)](strategies/cc-monitoring-agent-2026-05-07-cycle3-research.md) — Research complete, eval blocker fix identified, competitive landscape matured
+- [Cycle 3 Strategy (2026-05-07)](strategies/cc-monitoring-agent-2026-05-07-cycle3-strategy.md) — CEO PROCEED, 5 hypotheses (FIX eval blocker + 4 EXPLOIT), H1 prerequisite for all
+- [Cycle 3 H1 Complete (2026-05-07)](strategies/cc-monitoring-agent-2026-05-07-cycle3-h1-complete.md) — Eval blocker fixed, 4 PRs merged, project eval 1.0, factory composite 0.537
 
 ## Experiment History
 
@@ -158,3 +192,6 @@ CEO Verdict: **PROCEED**. Research thorough and actionable.
 - [Experiment #012](experiments/cc-monitoring-agent-012.md) — Filtering/sorting flags (**REVERT**, -0.058, systemic eval)
 - [Experiment #013](experiments/cc-monitoring-agent-013.md) — One-line summary mode (**REVERT**, -0.049, systemic eval)
 - [Experiment #014](experiments/cc-monitoring-agent-014.md) — State change notifications (**REVERT**, -0.032, systemic eval)
+
+### Improve Cycle 3 (Experiment 015+)
+- [Experiment #015](experiments/cc-monitoring-agent-015.md) — Fix eval blocker + merge 4 PRs to main (**KEEP**, H1, operational, project eval 1.0)

@@ -1,172 +1,140 @@
-# Research — cc-monitoring-agent (Improve Cycle)
+# Research Report — cc-monitoring-agent (Cycle 3)
 
 ## Project Summary
 
-cc-monitoring-agent (`ccm`) is a Python CLI tool that discovers Claude Code and OpenCode sessions running in tmux panes, detects their state (working/idle/needs_input), extracts a one-sentence activity summary, and displays results as a rich table or JSON. Architecture: discover → analyze → display pipeline. Tech stack: subprocess + rich + loguru, strict mypy, pytest, ruff.
+cc-monitoring-agent (`ccm`) is a Python CLI tool that scans tmux panes, detects Claude Code and OpenCode sessions, and displays a status dashboard. Architecture: discover → analyze → display pipeline. Stack: argparse + subprocess + rich + loguru. Current state on main: flat CLI (no subcommands), snapshot-only view, `--json` flag. 81 tests, 98% coverage, project eval 1.0, factory composite 0.539.
 
-**Current eval composite: 1.0** (all 5 dimensions pass — tests, typecheck, lint, cli_runs, formatting). The 0.517 score referenced in observations was from a prior cycle; type errors and coverage issues have since been resolved. All 70 tests pass, mypy strict reports 0 errors.
+**Key constraint**: 4 open PRs from cycle 1 (#2 mypy fix, #5 pytest-cov, #7 watch mode, #9 observability) exist on experiment branches but are not merged to main. All 3 cycle 2 backlog items (filtering, summary, notifications) were correctly implemented but reverted due to systemic factory eval failure (system Python can't resolve src-layout imports for mypy overlay).
 
 ## Backlog Assessment
 
-Backlog contains 1 item: "Missing items requiring human intervention: None identified." — this is a placeholder/empty item, not actionable. The backlog is effectively empty. No items are blocked or obsolete because none are real items.
+| Item | Status | Achievable? | Notes |
+|---|---|---|---|
+| Filtering/sorting flags (`--state`, `--agent`, `--sort`) | Tried, reverted (eval blocker) | Yes, if eval blocker resolved | Code was correct, e2e passed, project eval 1.0 |
+| One-line summary mode (`ccm summary`) | Tried, reverted (eval blocker) | Yes, if eval blocker resolved | Same — functionally complete, eval-blocked |
+| State change notifications (`--notify`) | Tried, reverted (eval blocker) | Yes, if eval blocker resolved | Same — requires watch mode PR #7 merged first |
+
+All 3 items are **blocked by the same root cause**: factory eval runs mypy with system Python, which cannot resolve `src/cc_monitor/` imports. Any new Python code triggers false score regression.
 
 ## Prior Knowledge (Archive)
 
-The archive contains 7 completed build experiments (all kept), 6 source notes covering tmux discovery, pane capture, terminal patterns for both Claude Code and OpenCode, tech stack decisions, and similar project analysis. Key prior decisions:
-- **No libtmux** — only 2 tmux commands needed; subprocess suffices
-- **No CLI framework** — single command, argparse is enough
-- **rich as only non-stdlib dep** (plus loguru for logging)
-- **Two-tier detection** — fast pane classification + child process verification
-- **Similar projects**: nights-watch (TUI monitor with MCP group chat) — only comparable project found, 0 stars
-- **Out-of-scope items noted at build time**: daemon mode, TUI dashboard (rich Live), notification integration, history/persistence, LLM summarization, config file
+### Relevant Patterns
+1. **Factory eval systemic regression**: src-layout projects scored with system Python — root cause of all cycle 2 reverts. `mypy_path = "src"` in pyproject.toml is the project-level fix (new finding this cycle).
+2. **0% keep rate = infrastructure blocker**: Stop cycling and fix infrastructure first.
+3. **Subcommand refactoring preserves backward compat with default_subparser**: Already applied in PR #7.
+4. **Observability instrumentation needs no new tests at debug level**: Applied in cycle 1 H4.
+5. **Request-level tracing via context-bound IDs**: Applied in cycle 1 H4 (scan_id).
+
+### Prior Source Notes (Still Valid)
+- Watch mode implementation pattern (Rich `Live`, ~50ms scan, no threading)
+- One-line summary format (`3 agents: 2 working, 1 idle`)
+- CLI subcommand structure (argparse `add_subparsers`)
+- macOS osascript notification pattern (now updated with Sequoia caveat — see below)
 
 ## External Research Findings
 
-### 1. pytest-cov Configuration for src Layout
+### 1. Competitive Landscape — Significant New Entrants
 
-The eval currently checks pass/fail but does not measure **test coverage**. Adding coverage measurement would provide a growth signal and guard against regressions.
+Since the build phase, the competitive landscape has matured considerably:
 
-**Recommended configuration** (from [pytest-cov docs](https://pytest-cov.readthedocs.io/en/latest/config.html), [Scientific Python guide](https://learn.scientific-python.org/development/guides/coverage/), [Coverage.py config reference](https://coverage.readthedocs.io/en/latest/config.html)):
+- **[claude-tmux](https://pypi.org/project/claude-tmux/)** (v1.2.0): Full-featured manager for multiple Claude Code instances in tmux. Uses SQLite for state tracking via Claude Code plugin hooks (not pane scraping). Features: worktree isolation per agent, TUI dashboard with vim keybindings, attention-based navigation (`next-attention`), search/filter, preview panes, squash-merge workflow. Requires Python 3.12+.
+- **[tmux-orche](https://pypi.org/project/tmux-orche/)**: Control plane for inter-agent communication across tmux sessions.
+- **[pylumbergh](https://pypi.org/project/pylumbergh/)**: Web dashboard for supervising multiple Claude Code sessions in tmux.
+- **[claude-code-tools](https://pypi.org/project/claude-code-tools/)**: Programmatic tmux control for Claude Code.
 
-```toml
-# pyproject.toml additions
-[tool.pytest.ini_options]
-addopts = "--cov=cc_monitor --cov-config=pyproject.toml --cov-report=term-missing"
+**Key differentiation for ccm**: ccm uses passive pane scraping (no plugin hooks required, works with any agent including OpenCode), while claude-tmux uses active hooks (requires setup but gets richer state). ccm is lighter-weight and zero-config for monitoring.
 
-[tool.coverage.run]
-source_pkgs = ["cc_monitor"]
+### 2. Rich Live vs Textual for TUI Features
 
-[tool.coverage.report]
-show_missing = true
-fail_under = 80
-```
+- **Rich `Live` + `Table`**: Sufficient for watch mode (flicker-free refresh, no threading needed). Already archived in prior research. Does NOT support interactive filtering/sorting natively.
+- **[Textual `DataTable`](https://textual.textualize.io/widgets/data_table/)**: Full interactive table with cursor modes (cell/row/column/none), programmatic `sort(*columns, key=...)`, vim-style navigation. No built-in filtering API — must be implemented via remove/re-add rows. Adds `textual` dependency.
+- **Recommendation for ccm**: Stay with Rich `Live` + pre-filter approach. Filtering via CLI flags (`--state`, `--agent`) is simpler and more composable (pipes, scripts) than interactive TUI filtering. Sorting via `--sort` flag with Python `sorted()` on `list[AgentSession]` is trivial. No new dependency needed.
 
-Requires adding `pytest-cov` to dev dependencies. The `source_pkgs` key is essential for src-layout projects — using `source = ["src"]` would measure the wrong paths. Coverage.py reads from `pyproject.toml` natively on Python 3.11+.
+### 3. macOS Notifications — osascript Reliability Issue on Sequoia
 
-### 2. mypy src Layout Best Practices
+**Critical finding**: `osascript -e 'display notification ...'` silently fails on macOS Sequoia and later when the terminal app lacks notification permissions. The command exits 0 (no error) but the notification is dropped. This is a chicken-and-egg problem: terminal apps don't appear in System Settings → Notifications until they've successfully delivered a notification.
 
-Current config (`strict = true`) works and passes clean. Enhancements from [mypy docs](https://mypy.readthedocs.io/en/stable/config_file.html) and [pydevtools guide](https://pydevtools.com/handbook/how-to/how-to-configure-mypy-strict-mode/):
+**Workarounds** (ranked by reliability):
+1. **`terminal-notifier`** (`brew install terminal-notifier`): Registers as its own Notification Center app, sidesteps the permission issue entirely. Most reliable for automation.
+2. **One-time Script Editor permission grant**: Run `display notification` in Script Editor first to trigger permission prompt.
+3. **Fallback to `display dialog`**: Works without permissions but creates a modal dialog, not a banner.
+
+**Recommendation for ccm**: Use `terminal-notifier` as primary (check availability via `shutil.which`), fall back to `osascript` with a warning about permissions. Document the Sequoia issue in help text.
+
+Sources: [macOS Notification Issue](https://forum.latenightsw.com/t/trying-to-use-terminal-for-display-notification/5068), [Silent Fail Bug](https://github.com/gsd-build/gsd-2/issues/2632), [macOS Notification Best Practices](https://dev.to/jfpio/how-to-get-macos-notifications-for-long-running-processes-even-over-ssh-154d)
+
+### 4. CLI Subcommand Patterns
+
+Current state on main: flat argparse (no subcommands). PR #7 (watch mode) introduces subcommands but isn't merged.
+
+**Best practices** (2025-2026):
+- argparse `add_subparsers()` with `set_defaults(func=handler)` is the zero-dependency pattern. Already used in PR #7.
+- Click (38.7% of CLI projects) and Typer offer cleaner decorator syntax but add dependencies.
+- **Recommendation**: Stay with argparse. ccm has 4 subcommands max — the complexity threshold for Click/Typer isn't reached.
+
+Sources: [CLI Tools Comparison](https://dasroot.net/posts/2025/12/building-cli-tools-python-click-typer-argparse/), [argparse Subparsers](https://runebook.dev/en/docs/python/library/argparse/argparse.ArgumentParser.add_subparsers)
+
+### 5. Factory Eval Blocker — mypy src-layout Fix
+
+The systemic eval blocker (system Python can't resolve src-layout imports) has a project-level workaround:
 
 ```toml
 [tool.mypy]
-strict = true
-packages = ["cc_monitor"]
-warn_unreachable = true
-
-[[tool.mypy.overrides]]
-module = ["tests.*"]
-disallow_untyped_defs = false
+mypy_path = "src"
 ```
 
-Key findings:
-- `packages = ["cc_monitor"]` lets you run `mypy` without path args
-- `warn_unreachable` is NOT included in `--strict` but catches dead code paths
-- Test overrides are standard practice — test functions often lack return type annotations
-- subprocess.run in strict mode: always pass `text=True` as literal (not variable), annotate result types explicitly when wrapping. The heavily overloaded type stubs in typeshed for subprocess.run are the most common source of strict-mode type errors in CLI tools.
+This tells mypy where to find packages even when not running from a virtualenv. If the factory eval runs `python -m mypy src/` with system Python, setting `mypy_path = "src"` in pyproject.toml should resolve the import failures.
 
-### 3. CLI Feature Expansion Patterns
+**Alternative**: `mypy_path = "$MYPY_CONFIG_FILE_DIR/src"` for config-relative resolution.
 
-The tool currently has a single command with one flag (`--json`). Standard expansion patterns from [argparse docs](https://docs.python.org/3/library/argparse.html) and [Real Python guide](https://realpython.com/command-line-interfaces-python-argparse/):
+**This is the highest-priority fix**: unblocking the eval infrastructure makes all 3 backlog items viable again.
 
-**Subcommands via `add_subparsers()`:**
-- `ccm status` — current behavior (list all sessions)
-- `ccm watch` — continuous polling with live refresh
-- `ccm attach <target>` — shortcut to `tmux attach -t`
-- `ccm summary` — compact one-line output for shell prompts
+Sources: [mypy config docs](https://mypy.readthedocs.io/en/stable/config_file.html), [mypy running imports](https://mypy.readthedocs.io/en/stable/running_mypy.html), [src-layout packaging](https://packaging.python.org/en/latest/discussions/src-layout-vs-flat-layout/)
 
-Key pattern: `set_defaults(func=handler)` on each subparser, dispatch via `args.func(args)` in main.
+### 6. tmux Monitoring Best Practices
 
-**Backward compatibility**: bare `ccm` (no subcommand) should behave as `ccm status`. Achieved by setting `default` on the subparser or checking `hasattr(args, 'func')`.
+From the broader ecosystem:
+- **Refresh intervals**: 2-5 seconds is standard (agent-teams-tmux uses 5s, ccm's watch mode uses 2s default — both reasonable)
+- **libtmux** (v0.55.1, pre-1.0): Object-oriented tmux API, but adds a heavy dependency and unstable API. ccm's subprocess approach is simpler and sufficient for read-only monitoring.
+- **Event-driven updates**: Some tools use fswatch/inotifywait for file-change triggers. Overkill for ccm — periodic poll is simpler and the scan is fast (~50ms).
 
-### 4. Watch Mode Implementation
-
-Watch mode is the highest-impact feature for a monitoring tool — continuous observation is the core use case. Research from [Rich Live display docs](https://rich.readthedocs.io/en/stable/live.html), [system-monitor-cli](https://pypi.org/project/system-monitor-cli/), and [terminal monitoring guide (Medium)](https://medium.com/@cumulus13/building-beautiful-terminal-based-network-monitoring-tools-in-python-6a036514097a):
-
-**Rich `Live` context manager** provides flicker-free terminal refresh:
-```python
-with Live(table, refresh_per_second=4) as live:
-    while True:
-        sessions = discover_sessions()
-        analyze_sessions(sessions)
-        live.update(build_table(sessions))
-        time.sleep(interval)
-```
-
-Key design points:
-- No threading needed — discover+analyze takes ~50ms total, well within a 2s poll interval
-- `refresh_per_second` parameter controls render rate independent of data collection rate
-- Graceful exit on `KeyboardInterrupt`
-- `--interval` flag for configurable poll rate (default 2s)
-- Rich `Live` is already available since `rich` is a dependency
-
-### 5. Filtering and Sorting
-
-Low-complexity, high-usability additions:
-- `--state working|idle|needs_input` — filter by state
-- `--agent claude|opencode` — filter by agent type
-- `--sort state|agent|session` — sort output
-- Implementation: pure Python filtering/sorting on `list[AgentSession]` before display
-
-### 6. One-Line Summary Mode
-
-For embedding in tmux status bar or shell prompts:
-- `ccm summary` or `ccm status --oneline`
-- Output: `3 agents: 2 working, 1 idle` or `⚡2 🕐1` (compact)
-- Enables integration: `set -g status-right '#(ccm summary --oneline)'` in .tmux.conf
-
-### 7. State Change Notifications
-
-For the "background monitoring" use case:
-- `ccm watch --notify` triggers macOS notification when an agent transitions to `needs_input`
-- Implementation: track previous state dict between poll iterations, diff on each cycle
-- macOS: `osascript -e 'display notification "..." with title "ccm"'` — no extra dependencies
-- Requires state persistence across poll cycles (simple dict in watch loop)
+Sources: [libtmux docs](https://libtmux.git-pull.com/quickstart/), [agent-teams-tmux](https://lobehub.com/skills/smartassets-io-skills-agent-teams-tmux)
 
 ## Recommended Focus Areas
 
-### FIX: Add pytest-cov and coverage configuration
-- Add `pytest-cov` to dev deps
-- Configure `[tool.coverage.run]` and `[tool.coverage.report]` in pyproject.toml
-- Set `fail_under = 80` (current coverage is likely high given 70 tests for ~200 LOC)
-- Strengthens eval by making test quality measurable, not just pass/fail
+### Priority 0: Unblock the Eval (FIX)
+Add `mypy_path = "src"` to `[tool.mypy]` in pyproject.toml. This is a 1-line config change that may unblock all new Python code from triggering false mypy regressions in the factory eval. Should be tested by running `python -m mypy src/` (not `uv run`) to verify system Python can resolve imports.
 
-### EXPLOIT: Watch mode (`ccm watch`)
-- Highest-impact feature — continuous observation is the primary monitoring UX
-- Use Rich `Live` context manager for flicker-free refresh
-- Add `--interval` flag (default 2s)
-- Requires migrating CLI from flat argparse to subcommands (`ccm status`, `ccm watch`)
-- Backward compat: bare `ccm` (no subcommand) behaves as `ccm status`
-- **Growth dimension:** capability_surface
+### Priority 1: Merge Open PRs (FIX)
+PRs #2, #5, #7, #9 represent cycle 1 work that passed all checks. Merging them to main is prerequisite for cycle 2 backlog items (filtering, summary, notifications all depend on the subcommand architecture from PR #7).
 
-### EXPLOIT: Filtering and sorting flags
-- `--state`, `--agent`, `--sort` flags on the status subcommand
-- Low complexity, improves usability when many sessions are running
-- Pure Python filtering on `list[AgentSession]`
-- **Growth dimension:** capability_surface
+### Priority 2: Re-apply Backlog Items (EXPLOIT)
+Once eval is unblocked and PRs merged, the 3 reverted features can be re-applied. The implementations were correct — they just need the infrastructure fix:
+- Filtering/sorting flags (`--state`, `--agent`, `--sort`)
+- One-line summary mode (`ccm summary`)
+- State change notifications (`--notify`) — with updated `terminal-notifier` fallback for macOS Sequoia
 
-### EXPLORE: One-line summary mode
-- `ccm summary` or `ccm status --oneline` for tmux status bar / shell prompt integration
-- Output: `3 agents: 2 working, 1 idle` compact format
-- Enables integration with tmux, starship, or other status tools
-- **Growth dimension:** capability_surface
-
-### EXPLORE: State change notifications
-- `ccm watch --notify` triggers macOS notification on `needs_input` transitions
-- Track previous state between poll iterations (simple dict)
-- macOS notification via `osascript` — no extra deps
-- **Growth dimension:** capability_surface
+### Priority 3: New Ideas (EXPLORE)
+If cycle 3 has budget for new items beyond backlog:
+- **`ccm attach <target>`**: Shortcut to `tmux attach -t` for the selected session — simple quality-of-life improvement, minimal code.
+- **tmux status bar integration docs**: `set -g status-right '#(ccm summary --oneline)'` — document this pattern and ensure `ccm summary` output is compatible (no ANSI escape codes, newline handling).
 
 ## References
 
-- [pytest-cov configuration](https://pytest-cov.readthedocs.io/en/latest/config.html)
-- [Coverage.py configuration reference](https://coverage.readthedocs.io/en/latest/config.html)
-- [Scientific Python coverage guide](https://learn.scientific-python.org/development/guides/coverage/)
-- [pytest good integration practices](https://docs.pytest.org/en/stable/explanation/goodpractices.html)
-- [mypy configuration file](https://mypy.readthedocs.io/en/stable/config_file.html)
-- [mypy strict mode guide (pydevtools)](https://pydevtools.com/handbook/how-to/how-to-configure-mypy-strict-mode/)
-- [mypy common issues](https://mypy.readthedocs.io/en/stable/common_issues.html)
-- [argparse documentation](https://docs.python.org/3/library/argparse.html)
-- [Real Python argparse guide](https://realpython.com/command-line-interfaces-python-argparse/)
-- [Rich Live display](https://rich.readthedocs.io/en/stable/live.html)
-- [Building terminal monitoring tools with Rich (Medium)](https://medium.com/@cumulus13/building-beautiful-terminal-based-network-monitoring-tools-in-python-6a036514097a)
-- [system-monitor-cli (PyPI)](https://pypi.org/project/system-monitor-cli/)
+- [claude-tmux (PyPI)](https://pypi.org/project/claude-tmux/)
+- [tmux-orche (PyPI)](https://pypi.org/project/tmux-orche/0.4.16/)
+- [pylumbergh (PyPI)](https://pypi.org/project/pylumbergh/0.1.0a143/)
+- [Textual DataTable](https://textual.textualize.io/widgets/data_table/)
+- [Rich Live Display docs](https://rich.readthedocs.io/en/latest/live.html)
+- [Rich Table API](https://rich.readthedocs.io/en/stable/reference/table.html)
+- [mypy config file docs](https://mypy.readthedocs.io/en/stable/config_file.html)
+- [mypy running imports](https://mypy.readthedocs.io/en/stable/running_mypy.html)
+- [Python src-layout vs flat-layout](https://packaging.python.org/en/latest/discussions/src-layout-vs-flat-layout/)
+- [CLI Tools: Click, Typer, argparse (2025)](https://dasroot.net/posts/2025/12/building-cli-tools-python-click-typer-argparse/)
+- [argparse subparsers docs](https://runebook.dev/en/docs/python/library/argparse/argparse.ArgumentParser.add_subparsers)
+- [macOS Notification permissions issue](https://forum.latenightsw.com/t/trying-to-use-terminal-for-display-notification/5068)
+- [macOS osascript silent fail bug](https://github.com/gsd-build/gsd-2/issues/2632)
+- [macOS Notification best practices](https://dev.to/jfpio/how-to-get-macos-notifications-for-long-running-processes-even-over-ssh-154d)
+- [libtmux docs](https://libtmux.git-pull.com/quickstart/)
+- [agent-teams-tmux](https://lobehub.com/skills/smartassets-io-skills-agent-teams-tmux)
+- [Claude Code Agent Teams docs](https://code.claude.com/docs/en/agent-teams)

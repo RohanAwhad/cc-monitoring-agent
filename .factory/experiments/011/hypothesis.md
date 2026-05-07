@@ -1,0 +1,1 @@
+Add filtering and sorting flags (--state, --agent, --sort) to status subcommand (retry with mypy fix)

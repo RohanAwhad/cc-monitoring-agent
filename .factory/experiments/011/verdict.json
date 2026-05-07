@@ -1,0 +1,15 @@
+{
+  "id": 11,
+  "timestamp": "2026-05-07 14:09:55.792405",
+  "hypothesis": "Add filtering and sorting flags (--state, --agent, --sort) to status subcommand (retry with mypy fix)",
+  "change_summary": "Filtering/sorting flags retry \u2014 reverted: score_direction -0.001, scope guard, anti_pattern similarity to #10",
+  "issue_number": 17,
+  "pr_number": null,
+  "score_before": null,
+  "score_after": null,
+  "delta": null,
+  "verdict": "revert",
+  "cost_usd": null,
+  "notes": "ceo:revert reason=precheck_failed failures=score_direction,scope,anti_pattern score_delta=-0.001 hypothesis_type=code execution_artifacts=na e2e=pass backlog_cleared=na systemic_issue=anti_pattern_blocks_retry_and_score_noise",
+  "research_citations": []
+}

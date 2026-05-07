@@ -38,3 +38,19 @@ The factory eval runs mypy/lint overlay dimensions using system Python, which ca
 ## 0% keep rate signals infrastructure blocker, not code quality issue
 Discovered in cc-monitoring-agent cycle 2.
 When all experiments in a cycle are reverted with the same failure mode (score_direction precheck) but all pass e2e tests and project eval, the root cause is infrastructure, not code. The correct response is to stop the cycle and fix the eval infrastructure rather than attempting more hypotheses — each attempt wastes builder time for a guaranteed revert. Diagnostic: if project eval = 1.0 but factory precheck fails on score_direction, the overlay dimensions are misconfigured.
+
+## mypy_path config is the project-level fix for src-layout eval blockers
+Discovered in cc-monitoring-agent cycle 3 research.
+When the factory eval runs mypy with system Python on a src-layout project, setting `mypy_path = "src"` in `[tool.mypy]` (pyproject.toml) tells mypy where to find packages without needing a virtualenv. This is a 1-line config fix that can unblock an entire project's experiment pipeline. Should be applied as a FIX hypothesis before any code-adding experiments.
+
+## Competitive differentiation shifts as ecosystems mature — reassess at each research cycle
+Discovered in cc-monitoring-agent cycle 3 research.
+During the build phase, no direct competitors existed. By cycle 3, multiple tools (claude-tmux, tmux-orche, pylumbergh) had appeared. The competitive advantage shifted from "only tool" to "zero-config passive monitoring" — a differentiation that must be actively maintained. Research cycles should always include a competitive scan even if the prior cycle found no competitors.
+
+## Operational merge experiments fix branch drift but don't improve factory composite
+Discovered in cc-monitoring-agent cycle 3 experiment #9 (015).
+When multiple correct PRs accumulate on branches because of eval blockers, merging them to main in a single operational experiment consolidates the codebase but may not improve factory composite. In this case, project eval was 1.0 but factory composite went from 0.539 to 0.537 — the additional imports from merged code actually added more factory eval errors. The value of the operational merge is not score improvement but unblocking future experiments that need to branch from an up-to-date main.
+
+## Merge conflict resolution in stacked PRs — preserve newer type signatures
+Discovered in cc-monitoring-agent cycle 3 experiment #9 (015).
+When merging PRs that were branched before other PRs landed, the key conflict pattern is old vs new function signatures. Always preserve the newer, more specific types (e.g., `Literal["working", "idle"]` over `str`) and the newer architecture (e.g., subcommand structure over flat CLI). The builder correctly identified that PR #9's older signatures should yield to the type-safe versions from PR #2.

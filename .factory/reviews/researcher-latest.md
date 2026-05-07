@@ -1,14 +1,14 @@
 # Researcher Agent Output
 
-- **timestamp:** 2026-05-07T15:52:56Z
+- **timestamp:** 2026-05-07T17:41:51Z
 - **exit_code:** 0
 
 ---
 
-Research report written to `.factory/strategy/research.md`.
+Research report written to `.factory/strategy/research.md`. Key findings:
 
-**Key findings:**
-- Current eval is actually **1.0** (not 0.517) — all dimensions pass clean. The prior score was stale.
-- Backlog is effectively empty (placeholder item only).
-- **5 actionable focus areas identified**: pytest-cov setup (FIX), watch mode with Rich `Live` (EXPLOIT, highest impact), filtering/sorting flags (EXPLOIT), one-line summary for tmux integration (EXPLORE), and state change notifications (EXPLORE).
-- Watch mode is the biggest opportunity — it's the natural primary UX for a monitoring tool and requires only Rich's `Live` context manager (already a dependency).
+- **Eval blocker fix found**: Adding `mypy_path = "src"` to `[tool.mypy]` in pyproject.toml should let system Python's mypy resolve src-layout imports — this 1-line config change could unblock all 3 reverted backlog items.
+- **Competitive landscape changed**: `claude-tmux` (v1.2.0) is now a full-featured competitor using plugin hooks + SQLite. ccm's differentiation is zero-config passive pane scraping that works with any agent.
+- **macOS Sequoia notification issue**: `osascript display notification` silently fails without terminal permissions. Recommendation: use `terminal-notifier` as primary, `osascript` as fallback.
+- **Textual not needed**: Rich `Live` + CLI-flag filtering is simpler and more composable than interactive TUI filtering. No new dependency.
+- **All 3 backlog items remain achievable** — the implementations were correct, just eval-blocked.

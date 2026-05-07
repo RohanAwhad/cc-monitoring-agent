@@ -20,3 +20,8 @@
 - [x] archivist after experiment 6 (revert) — 2026-05-07T17:07:30Z
 - [x] archivist after experiment 7 (revert) — 2026-05-07T17:16:10Z
 - [x] FINAL archivist (cycle 2) — 2026-05-07T17:24:13Z
+- [x] archivist after research — 2026-05-07T17:45:39Z
+- [x] archivist after strategy — 2026-05-07T17:51:10Z
+- [x] archivist after build H1 — 2026-05-07T17:59:05Z
+- [x] archivist after experiment 10 (revert) — 2026-05-07T18:04:30Z
+- [x] archivist after experiment 11 (revert) — 2026-05-07T18:10:07Z

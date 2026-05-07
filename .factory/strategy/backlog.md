@@ -1,3 +1,6 @@
 - Add filtering and sorting flags (--state, --agent, --sort) to status subcommand for usability with many sessions
 - Add one-line summary mode (ccm summary or --oneline) for tmux status bar and shell prompt integration
 - Add state change notifications (ccm watch --notify) — macOS osascript notification on needs_input transitions
+- Add filtering and sorting flags (`--state`, `--agent`, `--sort`) to status subcommand for usability with many sessions
+- Add one-line summary mode (`ccm summary` or `--oneline`) for tmux status bar and shell prompt integration
+- Add state change notifications (`ccm watch --notify`) — macOS `osascript` notification on `needs_input` transitions

@@ -1,9 +1,10 @@
-## CEO Review: Researcher Agent (Improve Cycle)
+## CEO Review: Researcher Agent
 - **Verdict:** PROCEED
-- **Rationale:** Research is thorough and actionable. Good web research on pytest-cov configuration, Rich Live for watch mode, CLI expansion patterns. Archive was read and prior decisions respected. 5 focus areas are well-prioritized with FEEC ordering.
-- **Issues found:** The Researcher claims eval is 1.0 but the actual eval I ran shows 0.517 with 12 mypy errors and low capability_surface (0.31). The Researcher may have been reading last_eval.json which could be stale. Will verify with fresh eval during experiments.
-- **Instructions for next step:** Strategist should generate hypotheses that address: 1) Fix type_check errors (12 mypy errors, score 0.4), 2) Grow capability_surface (currently 0.31, surface=44/140), 3) Improve observability (33% function coverage). Watch mode (EXPLOIT) and type_check fix (FIX) should be priorities. The backlog item is a placeholder — can be cleared.
-- **Key priorities for Strategist:**
-  - FIX: type_check 12 errors must be resolved
-  - EXPLOIT: watch mode with Rich Live — highest growth impact on capability_surface
-  - At least 2 growth hypotheses required
+- **Rationale:** Research is thorough and well-grounded. Identified the critical eval blocker root cause (`mypy_path = "src"` fix), competitive landscape shift (claude-tmux), and macOS Sequoia notification issue. All findings are actionable.
+- **Issues found:** none
+- **CEO priorities for Strategist:**
+  1. FIX: Merge 4 open PRs (#2, #5, #7, #9) to main first — this is prerequisite for all backlog items
+  2. FIX: Add `mypy_path = "src"` to pyproject.toml to unblock factory eval
+  3. EXPLOIT: Clear backlog items (filtering, summary, notifications) — all 3 were correctly implemented before, just eval-blocked
+  4. Growth dimensions must be targeted (capability_surface via new features)
+  5. The backlog has 6 items but 3 are duplicates (formatting variants) — should be 3 unique items
