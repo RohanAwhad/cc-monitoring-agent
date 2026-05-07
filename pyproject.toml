@@ -20,6 +20,7 @@ dev = [
     "pytest",
     "mypy",
     "ruff",
+    "pytest-cov>=7.1.0",
 ]
 
 [tool.setuptools.packages.find]
@@ -36,3 +37,11 @@ select = ["E", "F", "I", "W"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+addopts = "--cov=cc_monitor --cov-report=term-missing"
+
+[tool.coverage.run]
+source_pkgs = ["cc_monitor"]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 80
