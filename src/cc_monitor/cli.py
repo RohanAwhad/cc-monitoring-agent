@@ -35,7 +35,7 @@ def _run_status(args: argparse.Namespace) -> None:
 def _run_watch(args: argparse.Namespace) -> None:
     from cc_monitor.watch import watch_loop
 
-    watch_loop(interval=args.interval)
+    watch_loop(interval=args.interval, notify=args.notify)
 
 
 def main() -> None:
@@ -70,6 +70,12 @@ def main() -> None:
         type=float,
         default=2.0,
         help="refresh interval in seconds (default: 2)",
+    )
+    watch_parser.add_argument(
+        "--notify",
+        action="store_true",
+        default=False,
+        help="send macOS notification on needs_input transitions",
     )
     watch_parser.set_defaults(func=_run_watch)
 
