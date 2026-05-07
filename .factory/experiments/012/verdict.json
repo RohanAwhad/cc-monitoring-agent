@@ -1,0 +1,15 @@
+{
+  "id": 12,
+  "timestamp": "2026-05-07 14:16:01.813510",
+  "hypothesis": "Add one-line summary mode (ccm summary) for tmux status bar integration",
+  "change_summary": "Summary mode implemented but PR included dirty .factory/ files \u2014 closed and retrying",
+  "issue_number": 20,
+  "pr_number": null,
+  "score_before": null,
+  "score_after": null,
+  "delta": null,
+  "verdict": "error",
+  "cost_usd": null,
+  "notes": "ceo:error reason=pr_included_factory_files builder_failed=false systemic_issue=dirty_working_tree",
+  "research_citations": []
+}

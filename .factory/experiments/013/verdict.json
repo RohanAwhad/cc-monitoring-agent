@@ -1,0 +1,15 @@
+{
+  "id": 13,
+  "timestamp": "2026-05-07 14:19:54.108547",
+  "hypothesis": "Add one-line summary mode (ccm summary) for tmux status bar",
+  "change_summary": "Summary mode implemented correctly but precheck impossible: score 0.572 < threshold 0.800. Threshold unachievable due to factory eval detection failures (tests=0.5, coverage=0.5, research_grounding=0.0).",
+  "issue_number": 20,
+  "pr_number": null,
+  "score_before": null,
+  "score_after": null,
+  "delta": null,
+  "verdict": "revert",
+  "cost_usd": null,
+  "notes": "ceo:revert reason=precheck_failed failures=score_direction,scope score_delta=0.0 hypothesis_type=code execution_artifacts=na e2e=pass backlog_cleared=na systemic_issue=threshold_unachievable_factory_eval_detection_failures",
+  "research_citations": []
+}

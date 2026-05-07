@@ -1,0 +1,15 @@
+{
+  "id": 15,
+  "timestamp": "2026-05-07 15:09:22.078800",
+  "hypothesis": "Add one-line summary mode (ccm summary) \u2014 no new files",
+  "change_summary": "summary subcommand in cli.py, format_summary in display.py, 6 tests \u2014 reverted",
+  "issue_number": 27,
+  "pr_number": null,
+  "score_before": null,
+  "score_after": null,
+  "delta": null,
+  "verdict": "revert",
+  "cost_usd": null,
+  "notes": "ceo:revert reason=anti_pattern_0.62+scope score_delta=+0.008 hypothesis_type=code precheck=failed agents_spawned=R,S,B,R,E no_new_files_strategy_validated score_improved_but_anti_pattern_blocked",
+  "research_citations": []
+}
