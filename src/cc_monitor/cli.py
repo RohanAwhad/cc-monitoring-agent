@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import dataclasses
 import json
+import subprocess
 import sys
 import time
 import uuid
@@ -39,6 +40,35 @@ def _run_status(args: argparse.Namespace) -> None:
         display_results(sessions)
 
 
+def _run_attach(args: argparse.Namespace) -> None:
+    target: str = args.target
+    sessions = discover_sessions()
+
+    matches = [s for s in sessions if s.tmux_target == target]
+    if not matches:
+        lower_target = target.lower()
+        matches = [
+            s
+            for s in sessions
+            if lower_target in s.tmux_target.lower()
+            or lower_target in s.agent_type.lower()
+            or lower_target in s.session_name.lower()
+        ]
+
+    if len(matches) == 1:
+        t = matches[0].tmux_target
+        subprocess.run(["tmux", "select-window", "-t", t])
+        subprocess.run(["tmux", "select-pane", "-t", t])
+    elif len(matches) > 1:
+        print("Multiple matches found:")
+        for i, s in enumerate(matches, 1):
+            print(f"  {i}. {s.tmux_target} ({s.agent_type})")
+        sys.exit(1)
+    else:
+        print(f"No sessions matching '{target}'")
+        sys.exit(1)
+
+
 def _run_watch(args: argparse.Namespace) -> None:
     logger.debug("starting watch interval={}", args.interval)
     from cc_monitor.watch import watch_loop
@@ -69,6 +99,14 @@ def main() -> None:
         help="output results as JSON",
     )
     status_parser.set_defaults(func=_run_status)
+
+    attach_parser = subparsers.add_parser(
+        "attach", help="jump to a specific agent's tmux pane"
+    )
+    attach_parser.add_argument(
+        "target", help="tmux target or partial match (agent type, session name)"
+    )
+    attach_parser.set_defaults(func=_run_attach)
 
     watch_parser = subparsers.add_parser(
         "watch", help="continuously monitor sessions with live refresh"
