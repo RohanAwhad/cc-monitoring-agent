@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import os
+import re
 import subprocess
 import time
-from typing import Literal
+from typing import Any, Literal
 
 from loguru import logger
 
@@ -20,7 +22,11 @@ State definitions:
 - "idle": agent finished its task. Signs: completion marker (Worked/Cooked/Crunched for X), or ▣ marker, followed by empty prompt. Agent is done, not asking anything.
 - "needs_input": agent asked the user a question or is waiting for user to respond/approve something
 
-CRITICAL: An empty prompt after a completion marker = "idle", NOT "needs_input".\
+CRITICAL: An empty prompt after a completion marker = "idle", NOT "needs_input".
+
+Respond with a JSON object containing exactly two keys:
+- "state": one of "working", "idle", or "needs_input"
+- "summary": a 5-15 word description of the current task\
 """
 
 _RESULT_SCHEMA: dict[str, object] = {
@@ -31,6 +37,9 @@ _RESULT_SCHEMA: dict[str, object] = {
     },
     "required": ["state", "summary"],
 }
+
+_ASSISTANT_PREFILL = "<think>\n\n</think>\n```json"
+_JSON_RE = re.compile(r"\{.*\}", re.DOTALL)
 
 
 def capture_pane(tmux_target: str) -> str:
@@ -46,54 +55,89 @@ def capture_pane(tmux_target: str) -> str:
 
 
 
-def _analyze_with_llm(
-    sessions: list[AgentSession], pane_contents: dict[str, str]
+_LLM_MAX_RETRIES = 3
+_LLM_CONCURRENCY = 4
+_CONTROL_CHAR_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
+
+
+async def _analyze_one_session(
+    client: Any,
+    session: AgentSession,
+    tail: str,
+    base_url: str,
+    model: str,
+    semaphore: asyncio.Semaphore,
+) -> bool:
+    prompt = (
+        f"This is a {session.agent_type} agent terminal pane.\n"
+        f"Classify its state and summarize the task in 5-15 words.\n\n{tail}"
+    )
+    async with semaphore:
+        for attempt in range(_LLM_MAX_RETRIES):
+            t0 = time.monotonic()
+            try:
+                resp = await client.post(
+                    f"{base_url}/api/chat",
+                    json={
+                        "model": model,
+                        "messages": [
+                            {"role": "system", "content": _SYSTEM_PROMPT},
+                            {"role": "user", "content": prompt},
+                            {"role": "assistant", "content": _ASSISTANT_PREFILL},
+                        ],
+                        "stream": False,
+                    },
+                    timeout=60.0,
+                )
+                resp.raise_for_status()
+                data = resp.json()
+                raw = data.get("message", {}).get("content", "").strip()
+                combined = _ASSISTANT_PREFILL + raw
+                combined = _CONTROL_CHAR_RE.sub("", combined)
+                m = _JSON_RE.search(combined)
+                result: dict[str, str] = json.loads(m.group()) if m else {}
+                elapsed_ms = (time.monotonic() - t0) * 1000
+
+                state = result.get("state", "idle")
+                if state not in ("working", "idle", "needs_input"):
+                    state = "idle"
+                session.state = state  # type: ignore[assignment]
+                session.summary = result.get("summary", "")
+                logger.debug(
+                    "{} -> {} {!r} ({:.0f}ms)",
+                    session.tmux_target, state, session.summary, elapsed_ms,
+                )
+                return True
+            except Exception as e:
+                elapsed_ms = (time.monotonic() - t0) * 1000
+                logger.debug(
+                    "{} attempt {}/{} failed ({:.0f}ms): {}",
+                    session.tmux_target, attempt + 1, _LLM_MAX_RETRIES, elapsed_ms, e,
+                )
+    return False
+
+
+async def _analyze_with_llm(
+    sessions: list[AgentSession], pane_contents: dict[str, str],
 ) -> bool:
     import httpx
 
     base_url = os.environ.get("CC_MONITOR_LLM_BASE_URL", "http://localhost:11434")
     model = os.environ.get("CC_MONITOR_LLM_MODEL", "qwen3.5:4b")
+    semaphore = asyncio.Semaphore(_LLM_CONCURRENCY)
 
-    matched = 0
-    with httpx.Client() as client:
+    async with httpx.AsyncClient() as client:
+        tasks = []
         for session in sessions:
             content = pane_contents.get(session.tmux_target, "")
             lines = content.splitlines()
             tail = "\n".join(lines[-30:]) if len(lines) > 30 else content
-
-            prompt = (
-                f"This is a {session.agent_type} agent terminal pane.\n"
-                f"Classify its state and summarize the task in 5-15 words.\n\n{tail}"
+            tasks.append(
+                _analyze_one_session(client, session, tail, base_url, model, semaphore)
             )
-            t0 = time.monotonic()
-            resp = client.post(
-                f"{base_url}/api/chat",
-                json={
-                    "model": model,
-                    "messages": [
-                        {"role": "system", "content": _SYSTEM_PROMPT},
-                        {"role": "user", "content": prompt},
-                    ],
-                    "stream": False,
-                    "format": _RESULT_SCHEMA,
-                },
-                timeout=30.0,
-            )
-            resp.raise_for_status()
-            data = resp.json()
-            raw = data.get("message", {}).get("content", "").strip()
-            result: dict[str, str] = json.loads(raw)
-            elapsed_ms = (time.monotonic() - t0) * 1000
+        results = await asyncio.gather(*tasks)
 
-            state = result.get("state", "idle")
-            if state not in ("working", "idle", "needs_input"):
-                state = "idle"
-            session.state = state  # type: ignore[assignment]
-            session.summary = result.get("summary", "")
-            matched += 1
-            logger.debug("{} -> {} {!r} ({:.0f}ms)", session.tmux_target, state, session.summary, elapsed_ms)
-
-    return matched > 0
+    return any(results)
 
 
 def analyze_sessions(sessions: list[AgentSession]) -> list[AgentSession]:
@@ -103,7 +147,7 @@ def analyze_sessions(sessions: list[AgentSession]) -> list[AgentSession]:
 
     t0 = time.monotonic()
     try:
-        used_llm = _analyze_with_llm(sessions, pane_contents)
+        used_llm = asyncio.run(_analyze_with_llm(sessions, pane_contents))
     except Exception as e:
         logger.warning("LLM analysis failed: {}", e)
         used_llm = False
@@ -123,8 +167,6 @@ def analyze_sessions(sessions: list[AgentSession]) -> list[AgentSession]:
 
 
 # --- regex fallback (kept for offline/no-API use) ---
-
-import re
 
 _TOOL_CALL_RE = re.compile(r"⏺\s+\w+\(")
 _COMPLETION_RE = re.compile(r"✻\s+(Worked|Cooked|Crunched) for")
