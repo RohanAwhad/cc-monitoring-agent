@@ -52,7 +52,7 @@ def _analyze_with_llm(
     import httpx
 
     base_url = os.environ.get("CC_MONITOR_LLM_BASE_URL", "http://localhost:11434")
-    model = os.environ.get("CC_MONITOR_LLM_MODEL", "gemma4:e4b")
+    model = os.environ.get("CC_MONITOR_LLM_MODEL", "qwen3.5:4b")
 
     matched = 0
     with httpx.Client() as client:
