@@ -90,10 +90,11 @@ def _subprocess_side_effect(
 
 
 class TestFullPipeline:
+    @patch("cc_monitor.analyzer._analyze_with_llm", return_value=False)
     @patch("cc_monitor.discovery.subprocess.run")
     @patch("cc_monitor.analyzer.subprocess.run")
     def test_discover_analyze_display(
-        self, mock_analyzer_run: MagicMock, mock_discovery_run: MagicMock
+        self, mock_analyzer_run: MagicMock, mock_discovery_run: MagicMock, _mock_llm: MagicMock
     ) -> None:
         pane_contents = {
             "writer-cc:1.0": CLAUDE_WORKING_CONTENT,
@@ -114,19 +115,21 @@ class TestFullPipeline:
 
         claude_s = [s for s in sessions if s.agent_type == "claude"][0]
         assert claude_s.state == "working"
-        assert "Using Read" in claude_s.summary
+        assert claude_s.summary != ""
 
         opencode_s = [s for s in sessions if s.agent_type == "opencode"][0]
         assert opencode_s.state == "needs_input"
 
         display_results(sessions)
 
+    @patch("cc_monitor.analyzer._analyze_with_llm", return_value=False)
     @patch("cc_monitor.discovery.subprocess.run")
     @patch("cc_monitor.analyzer.subprocess.run")
     def test_mixed_states_json_output(
         self,
         mock_analyzer_run: MagicMock,
         mock_discovery_run: MagicMock,
+        _mock_llm: MagicMock,
         monkeypatch: object,
         capsys: object,
     ) -> None:
@@ -159,12 +162,14 @@ class TestFullPipeline:
         assert types["agents-py:2.1"] == "opencode"
         assert types["review:3.0"] == "claude"
 
+    @patch("cc_monitor.analyzer._analyze_with_llm", return_value=False)
     @patch("cc_monitor.discovery.subprocess.run")
     @patch("cc_monitor.analyzer.subprocess.run")
     def test_no_agent_panes_found(
         self,
         mock_analyzer_run: MagicMock,
         mock_discovery_run: MagicMock,
+        _mock_llm: MagicMock,
         capsys: object,
     ) -> None:
         tmux_out = "dev:0.0 zsh 12345\nbuild:1.0 vim 99999\n"
@@ -191,12 +196,14 @@ class TestFullPipeline:
 
 
 class TestCLIIntegration:
+    @patch("cc_monitor.analyzer._analyze_with_llm", return_value=False)
     @patch("cc_monitor.discovery.subprocess.run")
     @patch("cc_monitor.analyzer.subprocess.run")
     def test_table_output_with_sessions(
         self,
         mock_analyzer_run: MagicMock,
         mock_discovery_run: MagicMock,
+        _mock_llm: MagicMock,
         monkeypatch: object,
         capsys: object,
     ) -> None:
@@ -238,12 +245,14 @@ class TestCLIIntegration:
         data = json.loads(captured.out)
         assert data == {"sessions": []}
 
+    @patch("cc_monitor.analyzer._analyze_with_llm", return_value=False)
     @patch("cc_monitor.discovery.subprocess.run")
     @patch("cc_monitor.analyzer.subprocess.run")
     def test_json_structure_matches_model(
         self,
         mock_analyzer_run: MagicMock,
         mock_discovery_run: MagicMock,
+        _mock_llm: MagicMock,
         monkeypatch: object,
         capsys: object,
     ) -> None:

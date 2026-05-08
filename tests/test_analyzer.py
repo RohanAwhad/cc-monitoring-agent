@@ -3,14 +3,12 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 from cc_monitor.analyzer import (
+    _regex_detect_claude,
+    _regex_detect_opencode,
+    _regex_detect_state,
+    _regex_summarize,
     analyze_sessions,
     capture_pane,
-    detect_claude_state,
-    detect_opencode_state,
-    detect_state,
-    summarize_activity,
-    summarize_claude_activity,
-    summarize_opencode_activity,
 )
 from cc_monitor.models import AgentSession
 
@@ -63,6 +61,15 @@ CLAUDE_COOKED_IDLE_PANE = """\
   [████████████████░░░░████] $2.10
 """.strip().splitlines()
 
+CLAUDE_CRUNCHED_IDLE_PANE = """\
+✻ Crunched for 31m 36s
+
+  Done with the audit.
+
+❯
+───────────────────────────
+""".strip().splitlines()
+
 OPENCODE_WORKING_PANE = """\
   I'm currently analyzing the test results and checking for any
   remaining issues in the codebase.
@@ -77,6 +84,19 @@ OPENCODE_WORKING_PANE = """\
 OPENCODE_IDLE_PANE = """\
   The refactoring is complete. All tests pass.
 
+     ▣  Auto-Accept · Claude Opus 4.6
+
+  ┃
+  ┃
+  ┃
+  ┃  Auto-Accept · Claude Opus 4.6 Vertex (Anthropic) · max
+  ╹▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+                                    25.2K (3%) · $0.19  ctrl+p commands
+""".strip().splitlines()
+
+OPENCODE_NEEDS_INPUT_PANE = """\
+  Do you want me to proceed with the changes?
+
   ┃
   ┃
   ┃
@@ -86,25 +106,28 @@ OPENCODE_IDLE_PANE = """\
 """.strip().splitlines()
 
 
-class TestDetectClaudeState:
+class TestRegexDetectClaudeState:
     def test_idle_with_completion_marker(self) -> None:
-        assert detect_claude_state(CLAUDE_IDLE_PANE) == "idle"
+        assert _regex_detect_claude(CLAUDE_IDLE_PANE) == "idle"
 
     def test_idle_cooked_variant(self) -> None:
-        assert detect_claude_state(CLAUDE_COOKED_IDLE_PANE) == "idle"
+        assert _regex_detect_claude(CLAUDE_COOKED_IDLE_PANE) == "idle"
+
+    def test_idle_crunched_variant(self) -> None:
+        assert _regex_detect_claude(CLAUDE_CRUNCHED_IDLE_PANE) == "idle"
 
     def test_working_with_tool_calls(self) -> None:
-        assert detect_claude_state(CLAUDE_WORKING_PANE) == "working"
+        assert _regex_detect_claude(CLAUDE_WORKING_PANE) == "working"
 
     def test_needs_input_with_prompt(self) -> None:
-        assert detect_claude_state(CLAUDE_NEEDS_INPUT_PANE) == "needs_input"
+        assert _regex_detect_claude(CLAUDE_NEEDS_INPUT_PANE) == "needs_input"
 
     def test_empty_lines(self) -> None:
-        assert detect_claude_state([]) == "idle"
+        assert _regex_detect_claude([]) == "idle"
 
     def test_prompt_only(self) -> None:
         lines = ["❯ "]
-        assert detect_claude_state(lines) == "needs_input"
+        assert _regex_detect_claude(lines) == "needs_input"
 
     def test_tool_call_with_prompt_at_bottom(self) -> None:
         lines = [
@@ -116,47 +139,42 @@ class TestDetectClaudeState:
             "───────────────────────────",
             "  [████████████████░░░░████] $0.50",
         ]
-        assert detect_claude_state(lines) == "needs_input"
+        assert _regex_detect_claude(lines) == "needs_input"
 
 
-class TestDetectOpenCodeState:
+class TestRegexDetectOpenCodeState:
     def test_working_with_timer(self) -> None:
-        assert detect_opencode_state(OPENCODE_WORKING_PANE) == "working"
+        assert _regex_detect_opencode(OPENCODE_WORKING_PANE) == "working"
 
-    def test_idle_no_timer(self) -> None:
-        assert detect_opencode_state(OPENCODE_IDLE_PANE) == "needs_input"
+    def test_idle_with_done_marker(self) -> None:
+        assert _regex_detect_opencode(OPENCODE_IDLE_PANE) == "idle"
 
     def test_empty_lines(self) -> None:
-        assert detect_opencode_state([]) == "idle"
+        assert _regex_detect_opencode([]) == "idle"
 
     def test_timer_pattern_variations(self) -> None:
         lines = [
             "  ┃  Auto-Accept · Claude Opus 4.6 · 12m 5s",
             "  ╹▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀",
         ]
-        assert detect_opencode_state(lines) == "working"
+        assert _regex_detect_opencode(lines) == "working"
 
-    def test_no_timer_means_idle(self) -> None:
-        lines = [
-            "  ┃  Auto-Accept · Claude Opus 4.6 Vertex (Anthropic) · max",
-            "  ╹▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀",
-            "                                    25.2K (3%) · $0.19  ctrl+p commands",
-        ]
-        assert detect_opencode_state(lines) == "needs_input"
+    def test_no_timer_no_done_means_needs_input(self) -> None:
+        assert _regex_detect_opencode(OPENCODE_NEEDS_INPUT_PANE) == "needs_input"
 
 
-class TestDetectState:
+class TestRegexDetectState:
     def test_dispatches_to_claude(self) -> None:
-        assert detect_state("claude", CLAUDE_WORKING_PANE) == "working"
-        assert detect_state("claude", CLAUDE_NEEDS_INPUT_PANE) == "needs_input"
-        assert detect_state("claude", CLAUDE_IDLE_PANE) == "idle"
+        assert _regex_detect_state("claude", CLAUDE_WORKING_PANE) == "working"
+        assert _regex_detect_state("claude", CLAUDE_NEEDS_INPUT_PANE) == "needs_input"
+        assert _regex_detect_state("claude", CLAUDE_IDLE_PANE) == "idle"
 
     def test_dispatches_to_opencode(self) -> None:
-        assert detect_state("opencode", OPENCODE_WORKING_PANE) == "working"
-        assert detect_state("opencode", OPENCODE_IDLE_PANE) == "needs_input"
+        assert _regex_detect_state("opencode", OPENCODE_WORKING_PANE) == "working"
+        assert _regex_detect_state("opencode", OPENCODE_IDLE_PANE) == "idle"
 
     def test_unknown_agent_returns_idle(self) -> None:
-        assert detect_state("unknown", ["some content"]) == "idle"
+        assert _regex_detect_state("unknown", ["some content"]) == "idle"
 
 
 class TestCapturePaneIntegration:
@@ -177,90 +195,25 @@ class TestCapturePaneIntegration:
         assert capture_pane("bad:target") == ""
 
 
-CLAUDE_RECAP_PANE = """\
-  Some previous output here.
-
-※ recap: Building a writing assistance webapp with React frontend
-""".strip().splitlines()
-
-CLAUDE_THINKING_PANE = """\
-  still thinking...
-  Let me analyze this further.
-""".strip().splitlines()
-
-CLAUDE_COMPLETION_PANE = """\
-✻ Worked for 5m 12s
-
-  All tests pass now.
-""".strip().splitlines()
-
-
-class TestSummarizeClaudeActivity:
-    def test_recap_extraction(self) -> None:
-        result = summarize_claude_activity(CLAUDE_RECAP_PANE)
-        assert result == "Building a writing assistance webapp with React frontend"
-
-    def test_tool_call_extraction(self) -> None:
-        result = summarize_claude_activity(CLAUDE_WORKING_PANE)
-        assert result == "Using Read"
-
-    def test_thinking_state(self) -> None:
-        result = summarize_claude_activity(CLAUDE_THINKING_PANE)
-        assert result == "Thinking..."
-
-    def test_completion_marker(self) -> None:
-        result = summarize_claude_activity(CLAUDE_COMPLETION_PANE)
-        assert result == "Completed 5m 12s ago"
-
-    def test_fallback_last_meaningful_line(self) -> None:
-        lines = ["", "  Some meaningful output here.", "", ""]
-        result = summarize_claude_activity(lines)
+class TestRegexSummarize:
+    def test_returns_last_meaningful_line(self) -> None:
+        lines = ["", "  Some meaningful output here.", "", "───────"]
+        result = _regex_summarize("claude", lines)
         assert result == "Some meaningful output here."
 
     def test_empty_lines(self) -> None:
-        assert summarize_claude_activity([]) == ""
+        assert _regex_summarize("claude", []) == ""
 
-    def test_decoration_only_lines(self) -> None:
-        lines = ["───────────────────────────", "  [████████████████░░░░████]", ""]
-        result = summarize_claude_activity(lines)
-        assert result == ""
-
-
-class TestSummarizeOpenCodeActivity:
-    def test_working_with_timer(self) -> None:
-        result = summarize_opencode_activity(OPENCODE_WORKING_PANE)
-        assert "Processing for" in result
-        assert "3m 53s" in result
-
-    def test_idle_returns_last_content(self) -> None:
-        result = summarize_opencode_activity(OPENCODE_IDLE_PANE)
-        assert result == "The refactoring is complete. All tests pass."
-
-    def test_empty_lines(self) -> None:
-        assert summarize_opencode_activity([]) == "Active session"
-
-    def test_fallback_active_session(self) -> None:
-        lines = ["  ┃", "  ┃", "  ╹▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀"]
-        result = summarize_opencode_activity(lines)
-        assert result == "Active session"
-
-
-class TestSummarizeActivity:
-    def test_dispatches_to_claude(self) -> None:
-        result = summarize_activity("claude", CLAUDE_WORKING_PANE)
-        assert result == "Using Read"
-
-    def test_dispatches_to_opencode(self) -> None:
-        result = summarize_activity("opencode", OPENCODE_WORKING_PANE)
-        assert "Processing for" in result
-
-    def test_unknown_agent(self) -> None:
-        assert summarize_activity("unknown", ["something"]) == ""
+    def test_truncates_long_lines(self) -> None:
+        lines = ["x" * 200]
+        result = _regex_summarize("claude", lines)
+        assert len(result) == 80
 
 
 class TestAnalyzeSessions:
+    @patch("cc_monitor.analyzer._analyze_with_llm", return_value=False)
     @patch("cc_monitor.analyzer.capture_pane")
-    def test_updates_sessions(self, mock_capture: MagicMock) -> None:
+    def test_regex_fallback(self, mock_capture: MagicMock, _mock_llm: MagicMock) -> None:
         mock_capture.return_value = "\n".join(CLAUDE_WORKING_PANE) + "\n"
         session = AgentSession(
             session_name="test",
@@ -275,10 +228,10 @@ class TestAnalyzeSessions:
         result = analyze_sessions([session])
         assert len(result) == 1
         assert result[0].state == "working"
-        assert result[0].summary == "Using Read"
 
+    @patch("cc_monitor.analyzer._analyze_with_llm", return_value=False)
     @patch("cc_monitor.analyzer.capture_pane")
-    def test_handles_empty_capture(self, mock_capture: MagicMock) -> None:
+    def test_handles_empty_capture(self, mock_capture: MagicMock, _mock_llm: MagicMock) -> None:
         mock_capture.return_value = ""
         session = AgentSession(
             session_name="test",
@@ -294,8 +247,9 @@ class TestAnalyzeSessions:
         assert result[0].state == "idle"
         assert result[0].summary == ""
 
+    @patch("cc_monitor.analyzer._analyze_with_llm", return_value=False)
     @patch("cc_monitor.analyzer.capture_pane")
-    def test_multiple_sessions(self, mock_capture: MagicMock) -> None:
+    def test_multiple_sessions(self, mock_capture: MagicMock, _mock_llm: MagicMock) -> None:
         mock_capture.side_effect = [
             "\n".join(CLAUDE_NEEDS_INPUT_PANE) + "\n",
             "\n".join(OPENCODE_WORKING_PANE) + "\n",
@@ -325,4 +279,3 @@ class TestAnalyzeSessions:
         result = analyze_sessions(sessions)
         assert result[0].state == "needs_input"
         assert result[1].state == "working"
-        assert "Processing for" in result[1].summary
