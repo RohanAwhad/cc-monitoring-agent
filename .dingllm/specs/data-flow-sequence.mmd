@@ -1,0 +1,75 @@
+%% Data Flow Sequence — ccm status pipeline
+%% Shows the happy path from CLI invocation to output
+%% Includes LLM provider abstraction layer (Protocol-based)
+
+sequenceDiagram
+    participant User
+    participant CLI as cli.py
+    participant Log as logging.py
+    participant Disc as discovery.py
+    participant Tmux as tmux
+    participant PS as ps (OS)
+    participant Anlz as analyzer.py
+    participant Adapter as LLMProvider Protocol
+    participant Ollama as OllamaProvider
+    participant Vertex as AnthropicVertexProvider
+    participant Disp as display.py
+
+    User->>CLI: ccm status [--json]
+    CLI->>Log: setup_logging()
+    Log-->>CLI: stderr + file sinks configured
+
+    CLI->>Disc: discover_sessions()
+    Disc->>Tmux: tmux list-panes -a -F "#{session_name}:..."
+    Tmux-->>Disc: raw pane lines (session:window.pane cmd pid)
+    Disc->>Disc: _parse_pane_lines() → RawPane[]
+    Disc->>Disc: classify_pane() for each RawPane
+
+    loop For each claude_candidate
+        Disc->>PS: ps -eo pid,ppid,comm
+        PS-->>Disc: process table
+        Disc->>Disc: _check_child_processes() — has "claude" child?
+    end
+
+    Disc-->>CLI: AgentSession[] (state=idle, summary="")
+
+    CLI->>Anlz: analyze_sessions(sessions)
+
+    Note over Anlz,Adapter: Parse CC_MONITOR_LLM_MODEL<br/>"provider/model_name"<br/>e.g. "ollama/qwen3.5:4b"<br/>or "anthropic-vertex/claude-sonnet-4-20250514"
+    Anlz->>Adapter: resolve_provider(provider_str) → LLMProvider
+
+    loop For each session
+        Anlz->>Tmux: tmux capture-pane -p -t <target>
+        Tmux-->>Anlz: pane text content (last 30 lines)
+    end
+
+    alt LLM provider available
+        loop For each session (semaphore=4)
+            Anlz->>Adapter: classify(system_prompt, user_prompt) → {state, summary}
+
+            alt provider == "ollama"
+                Adapter->>Ollama: POST /api/chat {model, messages, stream:false}
+                Ollama-->>Adapter: Ollama response JSON
+            else provider == "anthropic-vertex"
+                Adapter->>Vertex: AnthropicVertex().messages.create(model, messages)
+                Vertex-->>Adapter: Anthropic Message response
+            end
+
+            Adapter-->>Anlz: LLMResult(state, summary)
+            Anlz->>Anlz: mutate session.state, session.summary
+        end
+    else LLM unavailable (fallback)
+        loop For each session
+            Anlz->>Anlz: _regex_detect_state(agent_type, lines)
+            Anlz->>Anlz: _regex_summarize(agent_type, lines)
+        end
+    end
+
+    Anlz-->>CLI: AgentSession[] (state+summary filled)
+
+    alt --json flag
+        CLI->>User: JSON to stdout
+    else default
+        CLI->>Disp: display_results(sessions)
+        Disp->>User: Rich table (Tmux Target | Agent | State | Summary)
+    end
