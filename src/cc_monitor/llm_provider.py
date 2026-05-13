@@ -115,37 +115,37 @@ class AnthropicVertexProvider:
         self.model = model
 
     async def classify(self, system_prompt: str, user_prompt: str) -> LLMResult:
-        client = AsyncAnthropicVertex()
-        for attempt in range(_LLM_MAX_RETRIES):
-            t0 = time.monotonic()
-            try:
-                message = await client.messages.create(
-                    model=self.model,
-                    max_tokens=256,
-                    system=system_prompt,
-                    messages=[{"role": "user", "content": user_prompt}],
-                )
-                raw = message.content[0].text  # type: ignore[union-attr]
-                result = _parse_llm_json(raw)
-                elapsed_ms = (time.monotonic() - t0) * 1000
-                state = _validate_state(result.get("state", "idle"))
-                summary = result.get("summary", "")
-                logger.debug(
-                    "anthropic-vertex classify -> {} {!r} ({:.0f}ms)",
-                    state,
-                    summary,
-                    elapsed_ms,
-                )
-                return LLMResult(state=state, summary=summary)
-            except Exception as e:
-                elapsed_ms = (time.monotonic() - t0) * 1000
-                logger.debug(
-                    "anthropic-vertex attempt {}/{} failed ({:.0f}ms): {}",
-                    attempt + 1,
-                    _LLM_MAX_RETRIES,
-                    elapsed_ms,
-                    e,
-                )
+        async with AsyncAnthropicVertex() as client:
+            for attempt in range(_LLM_MAX_RETRIES):
+                t0 = time.monotonic()
+                try:
+                    message = await client.messages.create(
+                        model=self.model,
+                        max_tokens=256,
+                        system=system_prompt,
+                        messages=[{"role": "user", "content": user_prompt}],
+                    )
+                    raw = message.content[0].text  # type: ignore[union-attr]
+                    result = _parse_llm_json(raw)
+                    elapsed_ms = (time.monotonic() - t0) * 1000
+                    state = _validate_state(result.get("state", "idle"))
+                    summary = result.get("summary", "")
+                    logger.debug(
+                        "anthropic-vertex classify -> {} {!r} ({:.0f}ms)",
+                        state,
+                        summary,
+                        elapsed_ms,
+                    )
+                    return LLMResult(state=state, summary=summary)
+                except Exception as e:
+                    elapsed_ms = (time.monotonic() - t0) * 1000
+                    logger.debug(
+                        "anthropic-vertex attempt {}/{} failed ({:.0f}ms): {}",
+                        attempt + 1,
+                        _LLM_MAX_RETRIES,
+                        elapsed_ms,
+                        e,
+                    )
         raise RuntimeError(
             f"AnthropicVertexProvider failed after {_LLM_MAX_RETRIES} retries"
         )
