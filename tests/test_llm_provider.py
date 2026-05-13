@@ -201,6 +201,8 @@ class TestAnthropicVertexProviderClassify:
 
         mock_client = MagicMock()
         mock_client.messages.create = AsyncMock(return_value=mock_message)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
 
         with patch(
             "cc_monitor.llm_provider.AsyncAnthropicVertex",
@@ -229,6 +231,8 @@ class TestAnthropicVertexProviderClassify:
         mock_message.content = [mock_content_block]
         mock_client = MagicMock()
         mock_client.messages.create = AsyncMock(return_value=mock_message)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
 
         with patch(
             "cc_monitor.llm_provider.AsyncAnthropicVertex",
@@ -251,6 +255,8 @@ class TestAnthropicVertexProviderClassify:
         mock_client.messages.create = AsyncMock(
             side_effect=TimeoutError("deadline exceeded")
         )
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
 
         with patch(
             "cc_monitor.llm_provider.AsyncAnthropicVertex",
@@ -269,6 +275,8 @@ class TestAnthropicVertexProviderClassify:
         mock_message.content = [mock_content_block]
         mock_client = MagicMock()
         mock_client.messages.create = AsyncMock(return_value=mock_message)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
 
         with patch(
             "cc_monitor.llm_provider.AsyncAnthropicVertex",
