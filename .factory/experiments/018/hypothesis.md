@@ -1,1 +1,0 @@
-Equip status command with session narrowing and reordering capabilities

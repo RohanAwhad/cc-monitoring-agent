@@ -1,0 +1,60 @@
+%% Architecture Overview — cc-monitor (ccm)
+%% Module dependency graph with data flow direction
+%% Includes LLM provider abstraction (Protocol-based)
+
+graph TD
+    subgraph "Entry Points"
+        MAIN["__main__.py<br/>python -m cc_monitor"]
+        CLI["cli.py<br/>ccm command<br/>argparse dispatch"]
+    end
+
+    subgraph "Core Pipeline"
+        DISC["discovery.py<br/>list_all_panes()<br/>classify_pane()<br/>verify_claude_candidate()<br/>discover_sessions()"]
+        ANLZ["analyzer.py<br/>capture_pane()<br/>_regex_detect_state()<br/>analyze_sessions()"]
+    end
+
+    subgraph "LLM Adapter Layer"
+        PROTO["LLMProvider Protocol<br/>classify(system, user) → LLMResult<br/>resolve_provider(provider_str)"]
+        OLLAMA["OllamaProvider<br/>POST /api/chat<br/>httpx async"]
+        VERTEX["AnthropicVertexProvider<br/>messages.create()<br/>anthropic SDK"]
+    end
+
+    subgraph "Output Layer"
+        DISP["display.py<br/>display_results()<br/>Rich Table"]
+        WATCH["watch.py<br/>watch_loop()<br/>Rich Live"]
+    end
+
+    subgraph "Foundation"
+        MODEL["models.py<br/>AgentSession, LLMResult<br/>dataclass"]
+        LOG["logging.py<br/>setup_logging()<br/>loguru"]
+    end
+
+    subgraph "External Systems"
+        TMUX["tmux<br/>list-panes / capture-pane"]
+        OLLAMA_SVC["Ollama Server<br/>localhost:11434"]
+        VERTEX_SVC["Anthropic Vertex API<br/>Google Cloud"]
+        PS["OS Process Table<br/>ps -eo pid,ppid,comm"]
+    end
+
+    MAIN --> CLI
+    CLI --> DISC
+    CLI --> ANLZ
+    CLI --> DISP
+    CLI --> WATCH
+    CLI --> LOG
+
+    DISC --> MODEL
+    DISC --> TMUX
+    DISC --> PS
+    ANLZ --> MODEL
+    ANLZ --> TMUX
+    ANLZ --> PROTO
+    PROTO --> OLLAMA
+    PROTO --> VERTEX
+    OLLAMA --> OLLAMA_SVC
+    VERTEX --> VERTEX_SVC
+    DISP --> MODEL
+    WATCH --> MODEL
+    WATCH --> DISC
+    WATCH --> ANLZ
+    WATCH --> DISP

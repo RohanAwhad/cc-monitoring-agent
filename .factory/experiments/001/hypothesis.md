@@ -1,1 +1,0 @@
-Fix 12 mypy strict-mode type errors in src/cc_monitor/ to bring type_check from 0.4 to 1.0
