@@ -1,0 +1,68 @@
+%% Discover + Analyze pipeline
+%% How sessions are found, classified, and analyzed
+
+sequenceDiagram
+    participant Caller as caller (cli / watch)
+    participant Disc as discovery.py
+    participant Tmux as tmux
+    participant PS as ps (OS)
+    participant Anlz as analyzer.py
+    participant Cache as PaneCache
+    participant Provider as LLMProvider
+
+    %% --- Discovery ---
+    Caller->>Disc: discover_sessions()
+    Disc->>Tmux: tmux list-panes -a -F "session:window.pane cmd pid"
+    Tmux-->>Disc: raw output lines
+
+    Disc->>Disc: _parse_pane_lines() → RawPane[]
+
+    loop For each RawPane
+        Disc->>Disc: classify_pane(pane)
+
+        alt command == "opencode"
+            Disc->>Disc: confirmed opencode agent
+        else command matches version pattern (X.Y.Z)
+            Disc->>PS: ps -eo pid,ppid,comm
+            PS-->>Disc: process table
+            Disc->>Disc: _check_child_processes() — "claude" in children?
+            alt child found
+                Disc->>Disc: confirmed claude agent
+            else no child
+                Disc->>Disc: skip pane (not an agent)
+            end
+        else other command
+            Disc->>Disc: skip pane (not an agent)
+        end
+    end
+
+    Disc-->>Caller: AgentSession[] (state="idle", summary="")
+
+    %% --- Analysis ---
+    Caller->>Anlz: analyze_sessions(sessions, cache?)
+
+    loop For each session
+        Anlz->>Tmux: tmux capture-pane -p -t <tmux_target>
+        Tmux-->>Anlz: pane text (last 30 lines)
+        Anlz->>Anlz: content_hash = hash(pane_text)
+
+        Anlz->>Cache: lookup(tmux_target, content_hash)
+
+        alt Cache HIT
+            Cache-->>Anlz: cached LLMResult(state, summary)
+        else Cache MISS
+            alt LLM available
+                Anlz->>Provider: classify(system_prompt, user_prompt)
+                Provider-->>Anlz: LLMResult(state, summary)
+            else LLM unavailable
+                Anlz->>Anlz: _regex_detect_state(agent_type, lines)
+                Anlz->>Anlz: _regex_summarize(agent_type, lines)
+            end
+            Anlz->>Cache: store(tmux_target, content_hash, result)
+        end
+
+        Anlz->>Anlz: session.state = result.state
+        Anlz->>Anlz: session.summary = result.summary
+    end
+
+    Anlz-->>Caller: AgentSession[] (state + summary filled)

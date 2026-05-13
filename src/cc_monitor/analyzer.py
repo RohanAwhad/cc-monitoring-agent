@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import os
 import re
 import subprocess
@@ -9,7 +10,7 @@ from typing import Literal
 
 from loguru import logger
 
-from cc_monitor.llm_provider import LLMProvider, resolve_provider
+from cc_monitor.llm_provider import LLMProvider, LLMResult, resolve_provider
 from cc_monitor.models import AgentSession, AgentState
 
 _SYSTEM_PROMPT = """\
@@ -52,7 +53,7 @@ async def _analyze_one_session(
     session: AgentSession,
     tail: str,
     semaphore: asyncio.Semaphore,
-) -> bool:
+) -> str | None:
     prompt = (
         f"This is a {session.agent_type} agent terminal pane.\n"
         f"Classify its state and summarize the task in 5-15 words.\n\n{tail}"
@@ -68,17 +69,19 @@ async def _analyze_one_session(
                 llm_result.state,
                 llm_result.summary,
             )
-            return True
+            return session.tmux_target
         except Exception as e:
             logger.debug("{} LLM classify failed: {}", session.tmux_target, e)
-    return False
+    return None
 
 
 async def _analyze_with_llm(
     sessions: list[AgentSession],
     pane_contents: dict[str, str],
-) -> bool:
-    provider_model = os.environ.get("CC_MONITOR_LLM_MODEL", "anthropic-vertex/claude-haiku-4-5@20251001")
+) -> set[str]:
+    provider_model = os.environ.get(
+        "CC_MONITOR_LLM_MODEL", "anthropic-vertex/claude-haiku-4-5@20251001"
+    )
     provider = resolve_provider(provider_model)
     semaphore = asyncio.Semaphore(_LLM_CONCURRENCY)
 
@@ -90,31 +93,81 @@ async def _analyze_with_llm(
         tasks.append(_analyze_one_session(provider, session, tail, semaphore))
     results = await asyncio.gather(*tasks)
 
-    return any(results)
+    return {t for t in results if t is not None}
 
 
-def analyze_sessions(sessions: list[AgentSession]) -> list[AgentSession]:
+def analyze_sessions(
+    sessions: list[AgentSession],
+    cache: dict[str, tuple[str, LLMResult]] | None = None,
+) -> list[AgentSession]:
     pane_contents: dict[str, str] = {}
     for session in sessions:
         pane_contents[session.tmux_target] = capture_pane(session.tmux_target)
 
+    # Compute tails and content hashes; apply cache hits
+    tails: dict[str, str] = {}
+    content_hashes: dict[str, str] = {}
+    uncached_sessions: list[AgentSession] = []
+    for session in sessions:
+        content = pane_contents.get(session.tmux_target, "")
+        lines = content.splitlines()
+        tail = "\n".join(lines[-30:]) if len(lines) > 30 else content
+        tails[session.tmux_target] = tail
+        content_hash = hashlib.md5(tail.encode()).hexdigest()
+        content_hashes[session.tmux_target] = content_hash
+
+        if cache is not None:
+            cached = cache.get(session.tmux_target)
+            if cached is not None:
+                stored_hash, stored_result = cached
+                if stored_hash == content_hash:
+                    session.state = stored_result.state
+                    session.summary = stored_result.summary
+                    logger.debug("{} cache hit, skipping LLM", session.tmux_target)
+                    continue
+        uncached_sessions.append(session)
+
+    # Run LLM only for uncached sessions
     t0 = time.monotonic()
-    try:
-        used_llm = asyncio.run(_analyze_with_llm(sessions, pane_contents))
-    except Exception as e:
-        logger.warning("LLM analysis failed: {}", e)
-        used_llm = False
+    succeeded_targets: set[str] = set()
+    if uncached_sessions:
+        uncached_contents = {
+            s.tmux_target: pane_contents.get(s.tmux_target, "")
+            for s in uncached_sessions
+        }
+        try:
+            succeeded_targets = asyncio.run(
+                _analyze_with_llm(uncached_sessions, uncached_contents)
+            )
+        except Exception as e:
+            logger.warning("LLM analysis failed: {}", e)
     elapsed_ms = (time.monotonic() - t0) * 1000
 
-    if used_llm:
+    if succeeded_targets:
         logger.debug("LLM analysis completed ({:.0f}ms)", elapsed_ms)
-    else:
-        logger.debug("LLM unavailable, falling back to regex")
-        for session in sessions:
-            content = pane_contents.get(session.tmux_target, "")
-            lines = content.splitlines()
-            session.state = _regex_detect_state(session.agent_type, lines)
-            session.summary = _regex_summarize(session.agent_type, lines)
+        # Store LLM results in cache (only for sessions that succeeded)
+        if cache is not None:
+            for session in uncached_sessions:
+                if session.tmux_target not in succeeded_targets:
+                    continue
+                content = pane_contents.get(session.tmux_target, "")
+                if not content:
+                    continue  # don't cache empty captures
+                content_hash = content_hashes[session.tmux_target]
+                cache[session.tmux_target] = (
+                    content_hash,
+                    LLMResult(state=session.state, summary=session.summary),
+                )
+
+    # Regex fallback for uncached sessions where LLM did not succeed
+    for session in uncached_sessions:
+        if session.tmux_target in succeeded_targets:
+            continue
+        logger.debug("LLM unavailable for {}, regex fallback", session.tmux_target)
+        content = pane_contents.get(session.tmux_target, "")
+        lines = content.splitlines()
+        session.state = _regex_detect_state(session.agent_type, lines)
+        session.summary = _regex_summarize(session.agent_type, lines)
 
     return sessions
 

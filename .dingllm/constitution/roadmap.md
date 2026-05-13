@@ -1,13 +1,13 @@
 # Roadmap
 
-## Current State (v0.2.0)
+## Current State (v0.3.1)
 
 - Core pipeline functional: discover -> analyze -> display
-- LLM-based analysis with async retry/concurrency + regex fallback
+- Protocol-based LLM provider abstraction (Ollama + Anthropic Vertex)
+- Default model: `anthropic-vertex/claude-haiku-4-5@20251001`
 - Supports: Claude Code, OpenCode, Gemini CLI, Codex CLI
 - Two output modes: one-shot status, continuous watch
-- 107 tests, 97% coverage, mypy strict, eval score 1.0
-- Factory autonomous improvement system: 23 experiments, 16 kept
+- 96 tests, 93% coverage, mypy strict
 
 ## Completed Milestones
 
@@ -29,6 +29,34 @@
 - [x] Watch mode with Rich Live
 - [x] Version bump and stabilization
 
+### v0.3.0 (Provider Abstraction)
+- [x] `LLMProvider` Protocol (`typing.Protocol`) with `classify()` method
+- [x] `LLMResult` frozen dataclass as shared return type
+- [x] `OllamaProvider` — httpx async, retries, JSON parsing
+- [x] `AnthropicVertexProvider` — AsyncAnthropicVertex SDK
+- [x] `resolve_provider("provider/model_name")` factory function
+- [x] `CC_MONITOR_LLM_MODEL` env var accepts `"provider/model"` format
+- [x] Canonical `AgentState` type alias moved to `models.py`
+- [x] Default model: `anthropic-vertex/claude-haiku-4-5@20251001`
+- [x] `anthropic[vertex]` added as dependency
+
+### v0.3.1 (Bugfix)
+- [x] Fix `RuntimeError: Event loop is closed` — AsyncAnthropicVertex client not closed
+- [x] Wrap `AsyncAnthropicVertex()` in `async with` context manager
+- [x] Prevents GC `__del__` from scheduling cleanup on dead event loop
+
+## In Progress
+
+### v0.4.0 — Pane content cache for watch mode
+- [ ] Hash last 30 lines of pane content (md5) per tmux target
+- [ ] Cache `LLMResult` keyed by `(tmux_target, content_hash)` — plain `dict` in `watch_loop()` scope
+- [ ] Skip LLM call on cache hit (content unchanged since last iteration)
+- [ ] `analyze_sessions()` gets optional `cache` param (`None` = no caching)
+- [ ] `watch.py` creates cache before loop, passes into `analyze_sessions()`
+- [ ] `ccm status` (one-shot) does not use cache — calls without `cache` arg
+- [ ] Cache only applies to LLM path — regex fallback is cheap, no caching
+- [ ] PRD: `.dingllm/prd/pane-content-cache.md`
+
 ## Potential Future Work
 
 ### Near-term
@@ -47,10 +75,3 @@
 - [ ] Agent orchestration (send commands to agents)
 - [ ] OTel-based observability integration
 - [ ] Integration with task management systems
-
-## Factory System Status
-
-- **Mode**: improve (build phase complete)
-- **Eval threshold**: 0.56 (weighted composite)
-- **Keep rate**: 55% overall (improving: cycles 5-7 at 100%)
-- **Strategy**: backlog cleared, research-driven hypothesis generation

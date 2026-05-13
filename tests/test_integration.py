@@ -90,7 +90,7 @@ def _subprocess_side_effect(
 
 
 class TestFullPipeline:
-    @patch("cc_monitor.analyzer._analyze_with_llm", return_value=False)
+    @patch("cc_monitor.analyzer._analyze_with_llm", return_value=set())
     @patch("cc_monitor.discovery.subprocess.run")
     @patch("cc_monitor.analyzer.subprocess.run")
     def test_discover_analyze_display(
@@ -122,7 +122,7 @@ class TestFullPipeline:
 
         display_results(sessions)
 
-    @patch("cc_monitor.analyzer._analyze_with_llm", return_value=False)
+    @patch("cc_monitor.analyzer._analyze_with_llm", return_value=set())
     @patch("cc_monitor.discovery.subprocess.run")
     @patch("cc_monitor.analyzer.subprocess.run")
     def test_mixed_states_json_output(
@@ -162,7 +162,7 @@ class TestFullPipeline:
         assert types["agents-py:2.1"] == "opencode"
         assert types["review:3.0"] == "claude"
 
-    @patch("cc_monitor.analyzer._analyze_with_llm", return_value=False)
+    @patch("cc_monitor.analyzer._analyze_with_llm", return_value=set())
     @patch("cc_monitor.discovery.subprocess.run")
     @patch("cc_monitor.analyzer.subprocess.run")
     def test_no_agent_panes_found(
@@ -196,7 +196,7 @@ class TestFullPipeline:
 
 
 class TestCLIIntegration:
-    @patch("cc_monitor.analyzer._analyze_with_llm", return_value=False)
+    @patch("cc_monitor.analyzer._analyze_with_llm", return_value=set())
     @patch("cc_monitor.discovery.subprocess.run")
     @patch("cc_monitor.analyzer.subprocess.run")
     def test_table_output_with_sessions(
@@ -245,7 +245,7 @@ class TestCLIIntegration:
         data = json.loads(captured.out)
         assert data == {"sessions": []}
 
-    @patch("cc_monitor.analyzer._analyze_with_llm", return_value=False)
+    @patch("cc_monitor.analyzer._analyze_with_llm", return_value=set())
     @patch("cc_monitor.discovery.subprocess.run")
     @patch("cc_monitor.analyzer.subprocess.run")
     def test_json_structure_matches_model(

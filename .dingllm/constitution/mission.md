@@ -28,7 +28,7 @@ Constantly switching between panes to check status is disruptive and error-prone
 
 1. **No external dependencies beyond tmux**: Agents are discovered via `tmux list-panes` and `ps` -- no agent-side instrumentation required
 2. **Graceful degradation**: LLM analysis falls back to regex heuristics if the LLM is unavailable
-3. **Minimal footprint**: Small Python package (~310 LOC), 3 runtime dependencies (loguru, rich, httpx)
+3. **Minimal footprint**: Small Python package, 4 runtime dependencies (loguru, rich, httpx, anthropic[vertex])
 4. **Strict typing**: MyPy strict mode, PEP 561 typed package
 5. **Observable**: Structured JSON logging to file at DEBUG level
 

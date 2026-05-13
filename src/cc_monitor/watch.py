@@ -9,6 +9,7 @@ from rich.table import Table
 from cc_monitor.analyzer import analyze_sessions
 from cc_monitor.discovery import discover_sessions
 from cc_monitor.display import STATE_STYLES
+from cc_monitor.llm_provider import LLMResult
 from cc_monitor.models import AgentSession
 
 
@@ -34,9 +35,10 @@ def _build_table(sessions: list[AgentSession]) -> Table:
 
 def watch_loop(interval: float = 2.0) -> None:
     logger.info("starting watch mode (interval={:.1f}s)", interval)
+    cache: dict[str, tuple[str, LLMResult]] = {}
     with Live(_build_table([]), refresh_per_second=1) as live:
         while True:
             sessions = discover_sessions()
-            sessions = analyze_sessions(sessions)
+            sessions = analyze_sessions(sessions, cache=cache)
             live.update(_build_table(sessions))
             time.sleep(interval)
