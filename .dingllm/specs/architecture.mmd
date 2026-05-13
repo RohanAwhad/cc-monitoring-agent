@@ -1,6 +1,6 @@
 %% Architecture Overview — cc-monitor (ccm)
 %% Module dependency graph with data flow direction
-%% Includes LLM provider abstraction (Protocol-based)
+%% Includes LLM provider abstraction and pane content cache
 
 graph TD
     subgraph "Entry Points"
@@ -11,6 +11,7 @@ graph TD
     subgraph "Core Pipeline"
         DISC["discovery.py<br/>list_all_panes()<br/>classify_pane()<br/>verify_claude_candidate()<br/>discover_sessions()"]
         ANLZ["analyzer.py<br/>capture_pane()<br/>_regex_detect_state()<br/>analyze_sessions()"]
+        CACHE["PaneCache<br/>hash(pane_content) → cached LLMResult<br/>skip LLM if content unchanged"]
     end
 
     subgraph "LLM Adapter Layer"
@@ -21,11 +22,11 @@ graph TD
 
     subgraph "Output Layer"
         DISP["display.py<br/>display_results()<br/>Rich Table"]
-        WATCH["watch.py<br/>watch_loop()<br/>Rich Live"]
+        WATCH["watch.py<br/>watch_loop()<br/>Rich Live<br/>owns PaneCache instance"]
     end
 
     subgraph "Foundation"
-        MODEL["models.py<br/>AgentSession, LLMResult<br/>dataclass"]
+        MODEL["models.py<br/>AgentSession, LLMResult<br/>AgentState<br/>dataclass"]
         LOG["logging.py<br/>setup_logging()<br/>loguru"]
     end
 
@@ -48,7 +49,8 @@ graph TD
     DISC --> PS
     ANLZ --> MODEL
     ANLZ --> TMUX
-    ANLZ --> PROTO
+    ANLZ --> CACHE
+    CACHE -.->|cache miss| PROTO
     PROTO --> OLLAMA
     PROTO --> VERTEX
     OLLAMA --> OLLAMA_SVC
@@ -57,4 +59,5 @@ graph TD
     WATCH --> MODEL
     WATCH --> DISC
     WATCH --> ANLZ
+    WATCH --> CACHE
     WATCH --> DISP

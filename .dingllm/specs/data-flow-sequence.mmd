@@ -1,75 +1,69 @@
-%% Data Flow Sequence — ccm status pipeline
-%% Shows the happy path from CLI invocation to output
-%% Includes LLM provider abstraction layer (Protocol-based)
+%% Data Flow Sequence — ccm watch pipeline (with pane content cache)
+%% Shows watch mode with hash-based cache to skip redundant LLM calls
+%% status mode is identical but without the outer loop and without cache
 
 sequenceDiagram
     participant User
     participant CLI as cli.py
     participant Log as logging.py
+    participant Watch as watch.py
     participant Disc as discovery.py
     participant Tmux as tmux
     participant PS as ps (OS)
     participant Anlz as analyzer.py
+    participant Cache as PaneCache
     participant Adapter as LLMProvider Protocol
     participant Ollama as OllamaProvider
     participant Vertex as AnthropicVertexProvider
     participant Disp as display.py
 
-    User->>CLI: ccm status [--json]
+    User->>CLI: ccm watch [--interval N]
     CLI->>Log: setup_logging()
-    Log-->>CLI: stderr + file sinks configured
+    Note over Watch,Cache: watch_loop() creates PaneCache instance<br/>persists across iterations
 
-    CLI->>Disc: discover_sessions()
-    Disc->>Tmux: tmux list-panes -a -F "#{session_name}:..."
-    Tmux-->>Disc: raw pane lines (session:window.pane cmd pid)
-    Disc->>Disc: _parse_pane_lines() → RawPane[]
-    Disc->>Disc: classify_pane() for each RawPane
+    loop Every N seconds
+        Watch->>Disc: discover_sessions()
+        Disc->>Tmux: tmux list-panes -a -F "#{session_name}:..."
+        Tmux-->>Disc: raw pane lines
+        Disc->>Disc: classify + verify agents
+        Disc-->>Watch: AgentSession[] (state=idle, summary="")
 
-    loop For each claude_candidate
-        Disc->>PS: ps -eo pid,ppid,comm
-        PS-->>Disc: process table
-        Disc->>Disc: _check_child_processes() — has "claude" child?
-    end
+        Watch->>Anlz: analyze_sessions(sessions, cache=pane_cache)
 
-    Disc-->>CLI: AgentSession[] (state=idle, summary="")
+        Note over Anlz,Adapter: resolve_provider from CC_MONITOR_LLM_MODEL
+        Anlz->>Adapter: resolve_provider(provider_str) → LLMProvider
 
-    CLI->>Anlz: analyze_sessions(sessions)
-
-    Note over Anlz,Adapter: Parse CC_MONITOR_LLM_MODEL<br/>"provider/model_name"<br/>e.g. "ollama/qwen3.5:4b"<br/>or "anthropic-vertex/claude-sonnet-4-20250514"
-    Anlz->>Adapter: resolve_provider(provider_str) → LLMProvider
-
-    loop For each session
-        Anlz->>Tmux: tmux capture-pane -p -t <target>
-        Tmux-->>Anlz: pane text content (last 30 lines)
-    end
-
-    alt LLM provider available
-        loop For each session (semaphore=4)
-            Anlz->>Adapter: classify(system_prompt, user_prompt) → {state, summary}
-
-            alt provider == "ollama"
-                Adapter->>Ollama: POST /api/chat {model, messages, stream:false}
-                Ollama-->>Adapter: Ollama response JSON
-            else provider == "anthropic-vertex"
-                Adapter->>Vertex: AnthropicVertex().messages.create(model, messages)
-                Vertex-->>Adapter: Anthropic Message response
-            end
-
-            Adapter-->>Anlz: LLMResult(state, summary)
-            Anlz->>Anlz: mutate session.state, session.summary
-        end
-    else LLM unavailable (fallback)
         loop For each session
-            Anlz->>Anlz: _regex_detect_state(agent_type, lines)
-            Anlz->>Anlz: _regex_summarize(agent_type, lines)
+            Anlz->>Tmux: tmux capture-pane -p -t <target>
+            Tmux-->>Anlz: pane text content (last 30 lines)
+            Anlz->>Cache: lookup(tmux_target, hash(content))
+
+            alt Cache HIT (content unchanged)
+                Cache-->>Anlz: cached LLMResult(state, summary)
+                Anlz->>Anlz: apply cached state+summary to session
+            else Cache MISS (new or changed content)
+                alt LLM provider available (semaphore=4)
+                    Anlz->>Adapter: classify(system_prompt, user_prompt)
+
+                    alt provider == "ollama"
+                        Adapter->>Ollama: POST /api/chat
+                        Ollama-->>Adapter: response JSON
+                    else provider == "anthropic-vertex"
+                        Adapter->>Vertex: messages.create()
+                        Vertex-->>Adapter: Message response
+                    end
+
+                    Adapter-->>Anlz: LLMResult(state, summary)
+                else LLM unavailable (fallback)
+                    Anlz->>Anlz: _regex_detect_state + _regex_summarize
+                end
+
+                Anlz->>Cache: store(tmux_target, hash, LLMResult)
+                Anlz->>Anlz: apply state+summary to session
+            end
         end
-    end
 
-    Anlz-->>CLI: AgentSession[] (state+summary filled)
-
-    alt --json flag
-        CLI->>User: JSON to stdout
-    else default
-        CLI->>Disp: display_results(sessions)
-        Disp->>User: Rich table (Tmux Target | Agent | State | Summary)
+        Anlz-->>Watch: AgentSession[] (state+summary filled)
+        Watch->>Disp: _build_table(sessions) → Rich Live update
+        Disp->>User: Updated Rich Live table
     end

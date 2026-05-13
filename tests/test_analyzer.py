@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+
 from unittest.mock import MagicMock, patch
 
 from cc_monitor.analyzer import (
@@ -10,6 +12,7 @@ from cc_monitor.analyzer import (
     analyze_sessions,
     capture_pane,
 )
+from cc_monitor.llm_provider import LLMResult
 from cc_monitor.models import AgentSession
 
 CLAUDE_IDLE_PANE = """\
@@ -211,7 +214,7 @@ class TestRegexSummarize:
 
 
 class TestAnalyzeSessions:
-    @patch("cc_monitor.analyzer._analyze_with_llm", return_value=False)
+    @patch("cc_monitor.analyzer._analyze_with_llm", return_value=set())
     @patch("cc_monitor.analyzer.capture_pane")
     def test_regex_fallback(self, mock_capture: MagicMock, _mock_llm: MagicMock) -> None:
         mock_capture.return_value = "\n".join(CLAUDE_WORKING_PANE) + "\n"
@@ -229,7 +232,7 @@ class TestAnalyzeSessions:
         assert len(result) == 1
         assert result[0].state == "working"
 
-    @patch("cc_monitor.analyzer._analyze_with_llm", return_value=False)
+    @patch("cc_monitor.analyzer._analyze_with_llm", return_value=set())
     @patch("cc_monitor.analyzer.capture_pane")
     def test_handles_empty_capture(self, mock_capture: MagicMock, _mock_llm: MagicMock) -> None:
         mock_capture.return_value = ""
@@ -247,7 +250,7 @@ class TestAnalyzeSessions:
         assert result[0].state == "idle"
         assert result[0].summary == ""
 
-    @patch("cc_monitor.analyzer._analyze_with_llm", return_value=False)
+    @patch("cc_monitor.analyzer._analyze_with_llm", return_value=set())
     @patch("cc_monitor.analyzer.capture_pane")
     def test_multiple_sessions(self, mock_capture: MagicMock, _mock_llm: MagicMock) -> None:
         mock_capture.side_effect = [
@@ -279,3 +282,212 @@ class TestAnalyzeSessions:
         result = analyze_sessions(sessions)
         assert result[0].state == "needs_input"
         assert result[1].state == "working"
+
+
+def _make_session(tmux_target: str = "test:0.0", **kwargs: object) -> AgentSession:
+    defaults: dict[str, object] = {
+        "session_name": "test",
+        "window_index": 0,
+        "pane_index": 0,
+        "agent_type": "claude",
+        "state": "idle",
+        "summary": "",
+        "pane_pid": 1234,
+        "tmux_target": tmux_target,
+    }
+    defaults.update(kwargs)
+    return AgentSession(**defaults)  # type: ignore[arg-type]
+
+
+PANE_CONTENT_A = "line1\nline2\nline3\n"
+PANE_CONTENT_B = "line1\nline2\nchanged\n"
+
+
+def _hash(content: str) -> str:
+    return hashlib.md5(content.encode()).hexdigest()
+
+
+def _llm_succeed_all(
+    sessions: list[AgentSession], pane_contents: dict[str, str]
+) -> set[str]:
+    """Mock side effect: return all tmux_targets as succeeded."""
+    return {s.tmux_target for s in sessions}
+
+
+class TestCacheMiss:
+    @patch("cc_monitor.analyzer._analyze_with_llm", side_effect=_llm_succeed_all)
+    @patch("cc_monitor.analyzer.capture_pane", return_value=PANE_CONTENT_A)
+    def test_first_call_is_cache_miss(
+        self, _mock_capture: MagicMock, mock_llm: MagicMock
+    ) -> None:
+        """First call with empty cache should call LLM."""
+        cache: dict[str, tuple[str, LLMResult]] = {}
+        session = _make_session()
+        analyze_sessions([session], cache=cache)
+        mock_llm.assert_called_once()
+
+    @patch("cc_monitor.analyzer._analyze_with_llm")
+    @patch("cc_monitor.analyzer.capture_pane", return_value=PANE_CONTENT_A)
+    def test_cache_stores_result_after_llm(
+        self, _mock_capture: MagicMock, mock_llm: MagicMock
+    ) -> None:
+        """After LLM succeeds, result is stored in cache."""
+        cache: dict[str, tuple[str, LLMResult]] = {}
+        session = _make_session()
+
+        def llm_side_effect(
+            sessions: list[AgentSession], pane_contents: dict[str, str]
+        ) -> set[str]:
+            for s in sessions:
+                s.state = "working"
+                s.summary = "doing stuff"
+            return {s.tmux_target for s in sessions}
+
+        mock_llm.side_effect = llm_side_effect
+        analyze_sessions([session], cache=cache)
+        assert "test:0.0" in cache
+        stored_hash, stored_result = cache["test:0.0"]
+        assert stored_hash == _hash(PANE_CONTENT_A)
+        assert stored_result.state == "working"
+        assert stored_result.summary == "doing stuff"
+
+
+class TestCacheHit:
+    @patch("cc_monitor.analyzer._analyze_with_llm", side_effect=_llm_succeed_all)
+    @patch("cc_monitor.analyzer.capture_pane", return_value=PANE_CONTENT_A)
+    def test_cache_hit_skips_llm(
+        self, _mock_capture: MagicMock, mock_llm: MagicMock
+    ) -> None:
+        """Second call with same content should skip LLM."""
+        content_hash = _hash(PANE_CONTENT_A)
+        cached_result = LLMResult(state="working", summary="cached summary")
+        cache: dict[str, tuple[str, LLMResult]] = {
+            "test:0.0": (content_hash, cached_result),
+        }
+        session = _make_session()
+        result = analyze_sessions([session], cache=cache)
+        mock_llm.assert_not_called()
+        assert result[0].state == "working"
+        assert result[0].summary == "cached summary"
+
+
+class TestCacheContentChange:
+    @patch("cc_monitor.analyzer._analyze_with_llm", side_effect=_llm_succeed_all)
+    @patch("cc_monitor.analyzer.capture_pane", return_value=PANE_CONTENT_B)
+    def test_content_change_causes_cache_miss(
+        self, _mock_capture: MagicMock, mock_llm: MagicMock
+    ) -> None:
+        """Changed content should miss cache and call LLM."""
+        old_hash = _hash(PANE_CONTENT_A)
+        cached_result = LLMResult(state="working", summary="old summary")
+        cache: dict[str, tuple[str, LLMResult]] = {
+            "test:0.0": (old_hash, cached_result),
+        }
+        session = _make_session()
+        analyze_sessions([session], cache=cache)
+        mock_llm.assert_called_once()
+
+
+class TestCacheNone:
+    @patch("cc_monitor.analyzer._analyze_with_llm", side_effect=_llm_succeed_all)
+    @patch("cc_monitor.analyzer.capture_pane", return_value=PANE_CONTENT_A)
+    def test_no_cache_always_calls_llm(
+        self, _mock_capture: MagicMock, mock_llm: MagicMock
+    ) -> None:
+        """cache=None (status mode) should always call LLM."""
+        session = _make_session()
+        analyze_sessions([session], cache=None)
+        mock_llm.assert_called_once()
+
+    @patch("cc_monitor.analyzer._analyze_with_llm", side_effect=_llm_succeed_all)
+    @patch("cc_monitor.analyzer.capture_pane", return_value=PANE_CONTENT_A)
+    def test_no_cache_default_param(
+        self, _mock_capture: MagicMock, mock_llm: MagicMock
+    ) -> None:
+        """Default cache param (None) should always call LLM."""
+        session = _make_session()
+        analyze_sessions([session])
+        mock_llm.assert_called_once()
+
+
+class TestCacheRegexFallback:
+    @patch("cc_monitor.analyzer._analyze_with_llm", return_value=set())
+    @patch("cc_monitor.analyzer.capture_pane")
+    def test_regex_fallback_ignores_cache(
+        self, mock_capture: MagicMock, _mock_llm: MagicMock
+    ) -> None:
+        """Regex fallback should run even when cache is provided."""
+        content = "\n".join(CLAUDE_WORKING_PANE) + "\n"
+        mock_capture.return_value = content
+        cached_result = LLMResult(state="idle", summary="stale cached")
+        # Pre-populate cache with different hash to force miss -> LLM fails -> regex
+        cache: dict[str, tuple[str, LLMResult]] = {
+            "test:0.0": ("different_hash", cached_result),
+        }
+        session = _make_session()
+        result = analyze_sessions([session], cache=cache)
+        # Regex should classify as working, not use cached "idle"
+        assert result[0].state == "working"
+
+
+class TestPartialLLMFailureCache:
+    @patch("cc_monitor.analyzer._analyze_with_llm")
+    @patch("cc_monitor.analyzer.capture_pane")
+    def test_only_successful_session_is_cached(
+        self, mock_capture: MagicMock, mock_llm: MagicMock
+    ) -> None:
+        """When LLM succeeds for A but fails for B, only A is cached."""
+        mock_capture.side_effect = [PANE_CONTENT_A, PANE_CONTENT_B]
+        session_a = _make_session("a:0.0")
+        session_b = _make_session("b:0.0")
+
+        def llm_side_effect(
+            sessions: list[AgentSession], pane_contents: dict[str, str]
+        ) -> set[str]:
+            for s in sessions:
+                if s.tmux_target == "a:0.0":
+                    s.state = "working"
+                    s.summary = "building feature"
+                # b:0.0 is not touched — simulates LLM failure
+            return {"a:0.0"}  # only A succeeded
+
+        mock_llm.side_effect = llm_side_effect
+        cache: dict[str, tuple[str, LLMResult]] = {}
+        analyze_sessions([session_a, session_b], cache=cache)
+
+        # A should be cached
+        assert "a:0.0" in cache
+        assert cache["a:0.0"][1].state == "working"
+        assert cache["a:0.0"][1].summary == "building feature"
+
+        # B should NOT be cached (LLM failed for it)
+        assert "b:0.0" not in cache
+
+        # B should have fallen back to regex
+        assert session_b.state != "idle" or session_b.summary != ""
+
+
+class TestEmptyCaptureNotCached:
+    @patch("cc_monitor.analyzer._analyze_with_llm")
+    @patch("cc_monitor.analyzer.capture_pane")
+    def test_empty_content_not_cached(
+        self, mock_capture: MagicMock, mock_llm: MagicMock
+    ) -> None:
+        """Empty capture_pane content should not be stored in cache."""
+        mock_capture.return_value = ""
+        session = _make_session()
+
+        def llm_side_effect(
+            sessions: list[AgentSession], pane_contents: dict[str, str]
+        ) -> set[str]:
+            for s in sessions:
+                s.state = "idle"
+                s.summary = ""
+            return {s.tmux_target for s in sessions}
+
+        mock_llm.side_effect = llm_side_effect
+        cache: dict[str, tuple[str, LLMResult]] = {}
+        analyze_sessions([session], cache=cache)
+
+        # Should NOT be cached because content was empty
+        assert "test:0.0" not in cache

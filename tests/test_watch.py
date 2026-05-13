@@ -114,3 +114,40 @@ class TestWatchLoop:
         except KeyboardInterrupt:
             pass
         mock_sleep.assert_called_once_with(5.0)
+
+    @patch("cc_monitor.watch.time.sleep", side_effect=KeyboardInterrupt)
+    @patch("cc_monitor.watch.analyze_sessions", return_value=[])
+    @patch("cc_monitor.watch.discover_sessions", return_value=[])
+    def test_passes_cache_to_analyze(
+        self,
+        _mock_discover: MagicMock,
+        mock_analyze: MagicMock,
+        _mock_sleep: MagicMock,
+    ) -> None:
+        try:
+            watch_loop(interval=1.0)
+        except KeyboardInterrupt:
+            pass
+        mock_analyze.assert_called_once()
+        _, kwargs = mock_analyze.call_args
+        assert "cache" in kwargs
+        assert isinstance(kwargs["cache"], dict)
+
+    @patch("cc_monitor.watch.time.sleep", side_effect=[None, KeyboardInterrupt])
+    @patch("cc_monitor.watch.analyze_sessions", return_value=[])
+    @patch("cc_monitor.watch.discover_sessions", return_value=[])
+    def test_cache_persists_across_iterations(
+        self,
+        _mock_discover: MagicMock,
+        mock_analyze: MagicMock,
+        _mock_sleep: MagicMock,
+    ) -> None:
+        try:
+            watch_loop(interval=1.0)
+        except KeyboardInterrupt:
+            pass
+        assert mock_analyze.call_count == 2
+        # Both calls should receive the same cache dict instance
+        cache_1 = mock_analyze.call_args_list[0][1]["cache"]
+        cache_2 = mock_analyze.call_args_list[1][1]["cache"]
+        assert cache_1 is cache_2

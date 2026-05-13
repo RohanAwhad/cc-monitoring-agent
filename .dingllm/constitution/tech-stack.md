@@ -17,8 +17,18 @@
 | System | How | Config |
 |--------|-----|--------|
 | tmux | `subprocess.run` (`list-panes`, `capture-pane`) | No config needed |
-| Ollama (LLM) | httpx async POST to `/api/chat` | `CC_MONITOR_LLM_BASE_URL` (default: `localhost:11434`), `CC_MONITOR_LLM_MODEL` (default: `qwen3.5:4b`) |
+| Ollama (LLM) | `OllamaProvider` — httpx async POST to `/api/chat` | `CC_MONITOR_LLM_BASE_URL` (default: `localhost:11434`) |
+| Anthropic Vertex (LLM) | `AnthropicVertexProvider` — `AsyncAnthropicVertex` SDK | Standard Google Cloud auth (ADC) |
 | OS processes | `subprocess.run` (`ps -eo pid,ppid,comm`) | For Claude child-process verification |
+
+## LLM Provider Abstraction
+
+- **Protocol**: `LLMProvider` (`typing.Protocol`) in `llm_provider.py`
+- **Method**: `async def classify(system_prompt, user_prompt) -> LLMResult`
+- **Factory**: `resolve_provider("provider/model_name")` parses and returns correct provider
+- **Providers**: `OllamaProvider`, `AnthropicVertexProvider`
+- **Retries**: 3 per provider, handled internally
+- **Client lifecycle**: Both use `async with` for proper cleanup
 
 ## Dev Toolchain
 
@@ -33,29 +43,30 @@
 
 | Variable | Module | Default | Purpose |
 |----------|--------|---------|---------|
-| `CC_MONITOR_LLM_BASE_URL` | analyzer.py | `http://localhost:11434` | Ollama API endpoint |
-| `CC_MONITOR_LLM_MODEL` | analyzer.py | `qwen3.5:4b` | LLM model for pane analysis |
+| `CC_MONITOR_LLM_MODEL` | analyzer.py | `anthropic-vertex/claude-haiku-4-5@20251001` | LLM provider + model (`"provider/model_name"` format) |
+| `CC_MONITOR_LLM_BASE_URL` | llm_provider.py | `http://localhost:11434` | Ollama API endpoint (OllamaProvider only) |
 | `LOGGING_LEVEL` | logging.py | `INFO` | Stderr log verbosity |
 
 ## Module Inventory
 
 | Module | LOC | Role |
 |--------|-----|------|
-| `models.py` | 26 | `AgentSession` dataclass (central data object) |
+| `models.py` | ~30 | `AgentSession` dataclass, `AgentState` type alias |
+| `llm_provider.py` | ~185 | `LLMProvider` Protocol, `OllamaProvider`, `AnthropicVertexProvider`, `resolve_provider()` |
 | `discovery.py` | ~80 | Tmux pane scanning, agent classification, process verification |
-| `analyzer.py` | ~80 | LLM + regex state detection, pane content capture |
+| `analyzer.py` | ~180 | LLM + regex state detection, pane content capture, delegates to LLMProvider |
 | `display.py` | ~60 | Rich table rendering (one-shot) |
 | `watch.py` | ~60 | Rich Live continuous monitoring loop |
-| `cli.py` | 90 | CLI entry point, argparse, subcommand dispatch |
-| `logging.py` | 27 | Loguru configuration (stderr + file) |
+| `cli.py` | ~90 | CLI entry point, argparse, subcommand dispatch |
+| `logging.py` | ~27 | Loguru configuration (stderr + file) |
 | `__main__.py` | 3 | `python -m cc_monitor` support |
 
 ## Key Constants
 
 | Constant | File | Value |
 |----------|------|-------|
-| `_LLM_MAX_RETRIES` | analyzer.py | 3 |
+| `_LLM_MAX_RETRIES` | llm_provider.py | 3 |
 | `_LLM_CONCURRENCY` | analyzer.py | 4 (semaphore) |
-| LLM timeout | analyzer.py | 60s per request |
+| LLM timeout (Ollama) | llm_provider.py | 60s per request |
 | Log rotation | logging.py | 10MB per file |
 | Watch default interval | watch.py | 2.0s |
