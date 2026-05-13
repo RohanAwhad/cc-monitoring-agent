@@ -1,1 +1,0 @@
-Configure pytest-cov and fix test/coverage detection for factory eval

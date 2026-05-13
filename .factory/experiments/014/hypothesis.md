@@ -1,1 +1,0 @@
-Add filtering/sorting flags (--state, --agent, --sort) to status subcommand + full observability bundle (32% → 100% function coverage with logger.debug() in all functions)

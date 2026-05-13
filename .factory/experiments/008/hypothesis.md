@@ -1,1 +1,0 @@
-Add state change notifications (ccm watch --notify) — macOS osascript notification on needs_input transitions

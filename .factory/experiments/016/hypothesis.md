@@ -1,1 +1,0 @@
-Desktop alert on needs_input via terminal-notifier in watch loop — inline in watch.py, no new modules
