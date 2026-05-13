@@ -5,6 +5,8 @@ from typing import Literal
 
 from loguru import logger
 
+AgentState = Literal["working", "idle", "needs_input"]
+
 
 @dataclass
 class AgentSession:
